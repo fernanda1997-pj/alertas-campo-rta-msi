@@ -98,18 +98,6 @@ async function atualizar(con, b) {
 
 module.exports = async (req, res) => {
   res.setHeader("Cache-Control", "no-store");
-  // TEMPORÁRIO (2026-10-29): conferir o formato do segredo colado no Vercel sem revelar o valor. Remover depois.
-  if (req.method === "GET" && (req.query || {}).diag === "1") {
-    const bruto = String(process.env.MS_CLIENT_SECRET || "");
-    const s = bruto.trim();
-    res.status(200).json({
-      tamanhoBruto: bruto.length, tamanho: s.length, espacoNasPontas: bruto !== s,
-      espacoNoMeio: /\s/.test(s), soCaracteresValidos: /^[A-Za-z0-9~._-]+$/.test(s),
-      tamanhoSiteId: String(process.env.MS_SITE_ID || "").trim().length,
-      siteIdComecaCerto: /^rtaengbr\.sharepoint\.com,/.test(String(process.env.MS_SITE_ID || "").trim())
-    });
-    return;
-  }
   if (!["GET", "POST", "PATCH"].includes(req.method)) {
     res.status(405).json({ erro: "Método não permitido" });
     return;
