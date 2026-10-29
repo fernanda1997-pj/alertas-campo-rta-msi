@@ -51,6 +51,11 @@ function limparRascunho() { return _tx(RASCUNHO_STORE, "readwrite", (s) => { s.c
 // `pendente` = mudou desde o último envio.
 function salvarFichaLocal(doc) { return _tx(FICHA_STORE, "readwrite", (s) => { s.put(doc); }); }
 function lerFichaLocal(id) { return _tx(FICHA_STORE, "readonly", (s) => s.get(id)); }
+// Zera tudo que o app guardou neste aparelho (fila, rascunho e fichas) — usado
+// uma vez só, na limpeza dos dados de teste (js/app.js)
+function limparTudoLocal() {
+  return Promise.all([FILA_STORE, RASCUNHO_STORE, FICHA_STORE].map((nome) => _tx(nome, "readwrite", (s) => { s.clear(); })));
+}
 function listarFichasLocais() { return _tx(FICHA_STORE, "readonly", (s) => s.getAll()).then((r) => r || []); }
 
 // Sem isso o navegador pode apagar a fila sozinho (Safari depois de ~7 dias,

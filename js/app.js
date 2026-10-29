@@ -35,8 +35,23 @@ document.getElementById("btn-trocar-nome").addEventListener("click", () => {
   if (novo != null && novo.trim()) { definirNome(novo); renderAlerta(); }
 });
 
+// Tudo até 29/10/2026 foi teste (pedido de 29/10): os dados do SharePoint foram
+// apagados lá, e cada aparelho apaga uma vez o que guardou (fichas marcadas, alerta
+// na fila, rascunho) — senão a ficha de teste subia de novo ao reabrir o trecho.
+// Nome e id do aparelho ficam. Sem localStorage (modo privado) não limpa: sem a
+// marca, apagaria a fila a cada vez que o app abrisse.
+const LIMPEZA_TESTES = "2026-10-29";
+async function limparDadosDeTeste() {
+  if (lerLocal("alertas_limpeza") === LIMPEZA_TESTES) return;
+  gravarLocal("alertas_limpeza", LIMPEZA_TESTES);
+  if (lerLocal("alertas_limpeza") !== LIMPEZA_TESTES) return;
+  gravarLocal("alertas_ficha_ultima", "");
+  try { await limparTudoLocal(); } catch (erro) { console.error("Não consegui limpar os dados de teste:", erro); }
+}
+
 (async function iniciar() {
   mostrarNome();
+  await limparDadosDeTeste();
   pedirArmazenamentoPersistente();
   await atualizarContagemFila();
   renderAlerta();
