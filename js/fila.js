@@ -4,13 +4,14 @@
 
 const FILA_DB_NOME = "alertas-campo-fila";
 const FILA_STORE = "alertas";
+const RASCUNHO_STORE = "rascunho"; // alerta ainda não enviado (ver salvarFotoRascunho)
 
 function abrirFilaDB() {
   return new Promise((resolve, reject) => {
-    const pedido = indexedDB.open(FILA_DB_NOME, 1);
+    const pedido = indexedDB.open(FILA_DB_NOME, 2);
     pedido.onupgradeneeded = () => {
-      if (!pedido.result.objectStoreNames.contains(FILA_STORE)) {
-        pedido.result.createObjectStore(FILA_STORE, { keyPath: "id" });
+      for (const nome of [FILA_STORE, RASCUNHO_STORE]) {
+        if (!pedido.result.objectStoreNames.contains(nome)) pedido.result.createObjectStore(nome, { keyPath: "id" });
       }
     };
     pedido.onsuccess = () => resolve(pedido.result);
@@ -18,18 +19,31 @@ function abrirFilaDB() {
   });
 }
 
-function _txFila(modo, acao) {
+function _tx(store, modo, acao) {
   return abrirFilaDB().then((db) => new Promise((resolve, reject) => {
-    const tx = db.transaction(FILA_STORE, modo);
-    const pedido = acao(tx.objectStore(FILA_STORE));
+    const tx = db.transaction(store, modo);
+    const pedido = acao(tx.objectStore(store));
     tx.oncomplete = () => resolve(pedido ? pedido.result : undefined);
     tx.onerror = () => reject(tx.error);
   }));
 }
 
-function salvarNaFila(item) { return _txFila("readwrite", (s) => { s.put(item); }); }
-function listarFila() { return _txFila("readonly", (s) => s.getAll()).then((r) => r || []); }
-function removerDaFila(id) { return _txFila("readwrite", (s) => { s.delete(id); }); }
+function salvarNaFila(item) { return _tx(FILA_STORE, "readwrite", (s) => { s.put(item); }); }
+function listarFila() { return _tx(FILA_STORE, "readonly", (s) => s.getAll()).then((r) => r || []); }
+function removerDaFila(id) { return _tx(FILA_STORE, "readwrite", (s) => { s.delete(id); }); }
+
+// ---- Rascunho: o alerta que está sendo montado e ainda não foi enviado ----
+// Cada foto é gravada aqui no momento em que é tirada, e o resto do formulário
+// (local, itens da ficha, gravidade, observação) a cada mudança. Se o celular
+// fechar o navegador no meio (troca de app, tela bloqueada, falta de memória),
+// tudo volta ao abrir o app de novo. Mesmo esquema do Fotos de Campo.
+const ID_ESTADO_RASCUNHO = "_estado";
+
+function salvarFotoRascunho(id, file) { return _tx(RASCUNHO_STORE, "readwrite", (s) => { s.put({ id, file }); }); }
+function removerFotoRascunho(id) { return _tx(RASCUNHO_STORE, "readwrite", (s) => { s.delete(id); }); }
+function salvarEstadoRascunho(estado) { return _tx(RASCUNHO_STORE, "readwrite", (s) => { s.put({ id: ID_ESTADO_RASCUNHO, estado }); }); }
+function listarRascunho() { return _tx(RASCUNHO_STORE, "readonly", (s) => s.getAll()).then((r) => r || []); }
+function limparRascunho() { return _tx(RASCUNHO_STORE, "readwrite", (s) => { s.clear(); }); }
 
 // Sem isso o navegador pode apagar a fila sozinho (Safari depois de ~7 dias,
 // Android quando falta espaço). Não mostra pergunta nenhuma pra pessoa.

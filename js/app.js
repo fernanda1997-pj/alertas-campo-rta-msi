@@ -40,6 +40,7 @@ document.getElementById("btn-trocar-nome").addEventListener("click", () => {
   pedirArmazenamentoPersistente();
   await atualizarContagemFila();
   renderAlerta();
+  await recuperarRascunho(); // alerta que ficou pela metade quando o app fechou
   processarFila();
   atualizarSeloPainel();
   setInterval(() => atualizarSeloPainel(), 300000); // aviso de alerta novo sem precisar recarregar (5 min)

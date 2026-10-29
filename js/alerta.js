@@ -15,6 +15,8 @@ function estadoInicialAlerta() {
     itens: {},              // { grupoId: código da coluna da ficha, outro: "Erosão"... }
     gravidade: "", observacao: "",
     proximos: [],           // alertas abertos perto daqui
+    avisoRascunho: "",      // fotos recuperadas do rascunho (o app tinha fechado antes do Enviar)
+    avisoCamera: "",        // a câmera do app não abriu e caiu na câmera do celular
     enviando: false, progresso: "", msgOk: "", msgErro: ""
   };
 }
@@ -56,7 +58,9 @@ function renderAlerta() {
   ).join("");
   const blocoFotos = s.fotos.length
     ? '<div class="mini-grade">' + miniaturas + '<button class="mini-foto mini-foto-mais" id="btn-mais-foto" aria-label="Tirar mais uma foto">+</button></div>'
-    : '<button class="btn-camera" id="btn-tirar-foto"><span class="btn-camera-icone">📷</span><span>Tirar foto do problema</span></button>';
+    : '<button class="btn-camera" id="btn-tirar-foto"><span class="btn-camera-icone">📷</span><span>Tirar foto do problema</span><small>pode tirar várias seguidas · dois dedos dão zoom</small></button>';
+  const avisosFoto = (s.avisoRascunho && s.fotos.length ? '<div class="aviso-gps">' + esc(s.avisoRascunho) + "</div>" : "")
+    + (s.avisoCamera ? '<div class="aviso-gps">' + esc(s.avisoCamera) + "</div>" : "");
 
   // ---- 2. Local ----
   let blocoLocal = "";
@@ -109,7 +113,7 @@ function renderAlerta() {
   const podeEnviar = !falta.length && !s.enviando && !s.localizando;
 
   m.innerHTML = '<div class="alerta-tela">' + faixaConexao + faixaFila + faixaFilaMsg + blocoNome
-    + '<div class="passo"><div class="passo-titulo"><span class="passo-num">1</span>Foto</div>' + blocoFotos + blocoLocal + "</div>"
+    + '<div class="passo"><div class="passo-titulo"><span class="passo-num">1</span>Foto</div>' + blocoFotos + avisosFoto + blocoLocal + "</div>"
     + '<div class="passo"><div class="passo-titulo"><span class="passo-num">2</span>O que você viu neste km?</div>' + blocoFicha + "</div>"
     + '<div class="passo"><div class="passo-titulo"><span class="passo-num">3</span>Gravidade</div><div class="linha-gravidade">' + botoesGravidade + "</div></div>"
     + '<div class="passo"><div class="passo-titulo"><span class="passo-num">4</span>Observação'
@@ -122,6 +126,7 @@ function renderAlerta() {
     + "</div>";
 
   ligarEventosAlerta(m);
+  agendarRascunho();
 }
 
 function ligarBotaoFila(m) {
@@ -131,14 +136,15 @@ function ligarBotaoFila(m) {
 
 function ligarEventosAlerta(m) {
   const s = alertaState;
-  const abrirCamera = () => document.getElementById("input-foto").click();
+  const abrirCamera = () => abrirCameraContinua(); // câmera do app (js/camera.js); sem suporte, cai na do celular
   const bTirar = m.querySelector("#btn-tirar-foto"); if (bTirar) bTirar.addEventListener("click", abrirCamera);
   const bMais = m.querySelector("#btn-mais-foto"); if (bMais) bMais.addEventListener("click", abrirCamera);
   m.querySelectorAll("[data-remover]").forEach((b) => b.addEventListener("click", () => {
     const f = s.fotos.find((x) => x.id === b.dataset.remover);
     if (f) URL.revokeObjectURL(f.url);
     s.fotos = s.fotos.filter((x) => x.id !== b.dataset.remover);
-    if (!s.fotos.length) { s.capturadoEm = null; }
+    removerFotoRascunho(b.dataset.remover).catch((erro) => console.error("Não consegui tirar a foto do rascunho:", erro));
+    if (!s.fotos.length) { s.capturadoEm = null; limparRascunhoSemFalhar(); }
     renderAlerta();
   }));
   const bCorrigir = m.querySelector("#btn-corrigir-local"); if (bCorrigir) bCorrigir.addEventListener("click", () => { s.manual = true; renderAlerta(); });
@@ -162,6 +168,7 @@ function ligarEventosAlerta(m) {
   if (obs) obs.addEventListener("input", (e) => {
     const antes = s.observacao.trim().length >= 5;
     s.observacao = e.target.value;
+    agendarRascunho();
     // só redesenha quando muda o "pode enviar", senão o teclado do celular fecha a cada letra
     if (antes !== (s.observacao.trim().length >= 5)) {
       const pos = e.target.selectionStart;
@@ -180,16 +187,16 @@ function ligarEventosAlerta(m) {
   ligarBotaoFila(m);
 }
 
-// Fotos escolhidas na câmera do celular
-document.addEventListener("change", (e) => {
-  if (e.target.id !== "input-foto") return;
-  const arquivos = Array.from(e.target.files || []);
-  e.target.value = "";
+// Fotos novas — da câmera do app (js/camera.js) ou da câmera do celular (input).
+// Cada uma já vai pro rascunho no celular; a 1ª dispara a leitura do GPS.
+function adicionarFotos(arquivos) {
   if (!arquivos.length) return;
   const s = alertaState;
   const eraPrimeira = !s.fotos.length;
   for (const file of arquivos) {
-    s.fotos.push({ id: "f" + Date.now() + Math.random().toString(36).slice(2, 7), file, url: URL.createObjectURL(file) });
+    const foto = { id: "f" + Date.now() + Math.random().toString(36).slice(2, 7), file, url: URL.createObjectURL(file) };
+    s.fotos.push(foto);
+    salvarFotoRascunho(foto.id, file).catch((erro) => console.error("Não consegui guardar a foto no rascunho do celular:", erro));
   }
   if (eraPrimeira) {
     s.capturadoEm = new Date().toISOString();
@@ -197,7 +204,59 @@ document.addEventListener("change", (e) => {
   } else {
     renderAlerta();
   }
+}
+
+document.addEventListener("change", (e) => {
+  if (e.target.id !== "input-foto") return;
+  const arquivos = Array.from(e.target.files || []);
+  e.target.value = "";
+  adicionarFotos(arquivos);
 });
+
+// ---- Rascunho (js/fila.js): o formulário sobrevive a sair da tela ----
+const CAMPOS_RASCUNHO = ["capturadoEm", "gps", "regiao", "trecho", "sre", "km", "extensaoKm", "distancia", "manual",
+  "situacao", "fichaDoSre", "tipoFicha", "itens", "gravidade", "observacao"];
+let _timerRascunho = null;
+
+function agendarRascunho() {
+  clearTimeout(_timerRascunho);
+  _timerRascunho = setTimeout(gravarEstadoRascunho, 400);
+}
+
+function gravarEstadoRascunho() {
+  const s = alertaState;
+  if (!s.fotos.length || s.msgOk || s.enviando) return; // sem foto não tem alerta começado
+  const estado = {};
+  for (const c of CAMPOS_RASCUNHO) estado[c] = s[c];
+  salvarEstadoRascunho(estado).catch((erro) => console.error("Não consegui guardar o rascunho:", erro));
+}
+
+function limparRascunhoSemFalhar() {
+  clearTimeout(_timerRascunho);
+  return limparRascunho().catch((erro) => console.error("Não consegui limpar o rascunho do celular:", erro));
+}
+
+// Ao abrir o app: devolve o alerta que ficou pela metade (fotos + o que já tinha sido marcado)
+async function recuperarRascunho() {
+  let itens;
+  try { itens = await listarRascunho(); } catch (erro) { console.error("Não consegui ler o rascunho:", erro); return; }
+  const fotos = itens.filter((i) => i.file);
+  if (!fotos.length) { if (itens.length) limparRascunhoSemFalhar(); return; }
+  const s = alertaState;
+  const reg = itens.find((i) => i.id === ID_ESTADO_RASCUNHO);
+  if (reg && reg.estado) for (const c of CAMPOS_RASCUNHO) if (reg.estado[c] !== undefined) s[c] = reg.estado[c];
+  s.fotos = fotos.map((f) => ({ id: f.id, file: f.file, url: URL.createObjectURL(f.file) }));
+  s.capturadoEm = s.capturadoEm || new Date().toISOString();
+  s.avisoRascunho = fotos.length === 1
+    ? "Recuperei 1 foto que ainda não tinha sido enviada."
+    : "Recuperei " + fotos.length + " fotos que ainda não tinham sido enviadas.";
+  // local já tinha sido lido antes de sair: não lê de novo (a pessoa pode ter andado)
+  if (!s.regiao && !s.gps) lerGps(); else renderAlerta();
+}
+
+// troca de app / tela bloqueada: grava na hora, sem esperar o intervalo
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") gravarEstadoRascunho(); });
+window.addEventListener("pagehide", gravarEstadoRascunho);
 
 function limparKm() {
   Object.assign(alertaState, { sre: "", km: null, extensaoKm: null, distancia: null, situacao: "", fichaDoSre: "" });
@@ -316,6 +375,7 @@ async function enviarAlertaDaTela() {
 
   const guardar = async () => {
     await salvarNaFila(item);
+    await limparRascunhoSemFalhar(); // as fotos já estão na fila, o rascunho não precisa mais segurar
     await atualizarContagemFila();
     s.enviando = false;
     s.msgOk = "Alerta guardado no celular";
@@ -327,6 +387,7 @@ async function enviarAlertaDaTela() {
 
   try {
     await enviarAlerta(item, (txt) => { s.progresso = txt; renderAlerta(); });
+    await limparRascunhoSemFalhar();
     s.enviando = false;
     s.msgOk = "Alerta enviado";
     s.fotos.forEach((f) => URL.revokeObjectURL(f.url));
