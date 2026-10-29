@@ -35,8 +35,10 @@ Se faltar alguma variável, o app mostra "SharePoint não configurado".
 
 ## Aba Ficha (preencher a Ficha de Inspeção em campo)
 
-Escolhe região + tipo + trecho (ou "Achar pelo meu local"), liga **Acompanhar
-minha localização** e marca a condição atual de cada grupo em **Preencher ao
+Ao abrir a aba, o GPS acha o trecho e já liga o acompanhamento (sem GPS, volta
+pra última ficha; dá pra escolher região + tipo + trecho na mão em "Trocar").
+Entrando em outro trecho das fichas, a ficha troca sozinha — só depois de 3
+leituras seguidas e 100 m rodados nele, pra não trocar em cruzamento. Marca a condição atual de cada grupo em **Preencher ao
 passar**: toda linha por onde o carro passa é marcada assim (não precisa ser de
 km em km; trocou a condição depois da metade da linha, ela fica como estava).
 Qualquer linha pode ser marcada à mão, e copiada até outra linha.
