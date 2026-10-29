@@ -232,7 +232,7 @@ function htmlFicha(a) {
     + (a.tratado_por ? "<div><span>Último tratamento</span>" + esc(a.tratado_por) + " · " + fmtDataHora(a.tratado_em) + "</div>" : "")
     + "</div>"
     + '<div class="field"><label>Status</label><div class="linha-status">' + botoesStatus + "</div></div>"
-    + '<div class="field"><label>Resposta pro campo <span class="rotulo-mini">(aparece em "Meus alertas" de quem mandou)</span></label>'
+    + '<div class="field"><label>Anotação do escritório <span class="rotulo-mini">(o que foi feito / combinado)</span></label>'
     + '<textarea class="input" id="ficha-resposta" rows="2" maxlength="600" placeholder="Ex.: equipe de tapa-buraco vai na quinta">' + esc(a.resposta || "") + "</textarea></div>"
     + '<div class="field"><label>Virou ponto crítico? <span class="rotulo-mini">(opcional)</span></label>'
     + '<input class="input" id="ficha-pc" maxlength="60" placeholder="Ex.: R1 nº 184" value="' + esc(a.ponto_critico || "") + '"></div>'

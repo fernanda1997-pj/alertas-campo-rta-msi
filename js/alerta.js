@@ -43,7 +43,7 @@ function renderAlerta() {
   if (s.msgOk) {
     m.innerHTML = '<div class="alerta-tela">' + faixaConexao + faixaFila
       + '<div class="enviado-ok"><div class="enviado-icone">✓</div><div class="enviado-titulo">' + esc(s.msgOk) + "</div>"
-      + '<div class="enviado-sub">Acompanhe a resposta do escritório em <b>Meus alertas</b>.</div>'
+      + '<div class="enviado-sub">O escritório recebe no Painel.</div>'
       + '<button class="btn btn-primary btn-grande" id="btn-novo-alerta">Registrar outro alerta</button></div></div>';
     m.querySelector("#btn-novo-alerta").addEventListener("click", () => { alertaState = estadoInicialAlerta(); renderAlerta(); });
     ligarBotaoFila(m);
@@ -407,9 +407,7 @@ async function processarFila() {
     alertasAbertosCache = null;
     atualizarSeloPainel();
   }
-  renderAlerta();
-  if (typeof renderMeus === "function" && meusState.carregou) carregarMeus();
-}
+  renderAlerta();}
 
 window.addEventListener("online", () => { renderAlerta(); processarFila(); });
 window.addEventListener("offline", () => renderAlerta());

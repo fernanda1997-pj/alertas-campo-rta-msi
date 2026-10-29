@@ -202,19 +202,8 @@ textarea.input{ height:auto; padding:10px 14px; resize:vertical; }
 .spinner{ width:18px; height:18px; border-radius:50%; border:2.5px solid var(--border); border-top-color:var(--accent); animation:girar .7s linear infinite; flex:0 0 auto; }
 @keyframes girar{ to{ transform:rotate(360deg); } }
 
-/* ---------- Meus alertas ---------- */
-.lista-tela{ padding:18px; display:flex; flex-direction:column; gap:12px; }
-.lista-topo{ display:flex; align-items:center; justify-content:space-between; }
-.lista-titulo{ font-size:16px; font-weight:700; color:var(--accent); }
-.cartao-alerta{ display:flex; gap:12px; padding:12px; border-radius:12px; background:var(--surface); border:1px solid var(--border); }
-.cartao-fila{ border-style:dashed; }
-.cartao-alerta-foto{ flex:0 0 92px; height:92px; border-radius:9px; overflow:hidden; background:var(--surface-soft); display:flex; align-items:center; justify-content:center; font-size:11px; color:var(--text-muted); }
-.cartao-alerta-foto img{ width:100%; height:100%; object-fit:cover; }
-.cartao-alerta-corpo{ flex:1 1 auto; min-width:0; display:flex; flex-direction:column; gap:4px; font-size:14px; }
-.cartao-alerta-topo, .linha-alerta-topo{ display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
-.resposta{ margin-top:4px; padding:8px 10px; border-radius:8px; background:var(--accent-soft); font-size:13px; line-height:1.45; }
-
 /* ---------- Painel ---------- */
+.linha-alerta-topo{ display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
 .painel-tela{ display:flex; flex-direction:column; }
 .painel-toolbar{ display:flex; flex-wrap:wrap; gap:10px; align-items:center; padding:12px 14px; background:var(--surface); border-bottom:1px solid var(--border); }
 .chips-contagem{ display:flex; flex-wrap:wrap; gap:6px; }
@@ -263,11 +252,9 @@ textarea.input{ height:auto; padding:10px 14px; resize:vertical; }
   .usuario-chip{ margin-left:auto; order:2; }
   .usuario-chip span{ display:none; }
   .conteudo{ padding:10px !important; }
-  .alerta-tela, .lista-tela{ padding:14px; }
+  .alerta-tela{ padding:14px; }
   .painel-filtros{ margin-left:0; width:100%; }
   .painel-filtros select{ flex:1 1 calc(50% - 4px); min-width:0; }
   .painel-corpo{ flex-direction:column; height:auto; }
   .painel-mapa{ flex:none; height:300px; }
-  .painel-lista{ flex:none; border-left:none; border-top:1px solid var(--border); overflow:visible; }
-  .cartao-alerta-foto{ flex-basis:74px; height:74px; }
-}
+  .painel-lista{ flex:none; border-left:none; border-top:1px solid var(--border); overflow:visible; }}

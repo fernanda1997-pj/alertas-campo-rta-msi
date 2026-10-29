@@ -2,8 +2,9 @@
 //
 // Sem login (decisão de 2026-10-29): a pessoa digita o nome uma vez e ele fica
 // salvo no celular, junto com um id aleatório do aparelho. O nome vai em cada
-// alerta (e em quem tratou, no Painel); o id é o que monta "Meus alertas".
-// Limpar os dados do navegador apaga os dois — aí "Meus alertas" recomeça vazio.
+// alerta (e em quem tratou, no Painel). O id do aparelho também vai em cada
+// alerta — hoje não é usado na tela (a aba "Meus alertas" saiu em 2026-10-29),
+// mas permite saber quais alertas saíram do mesmo celular.
 
 const CHAVE_NOME = "alertas_nome";
 const CHAVE_DISPOSITIVO = "alertas_dispositivo";
@@ -45,11 +46,9 @@ document.getElementById("btn-trocar-nome").addEventListener("click", () => {
 })();
 
 function mudarAba(aba) {
-  for (const nome of ["alerta", "meus", "painel"]) {
+  for (const nome of ["alerta", "painel"]) {
     document.getElementById("aba-" + nome).style.display = aba === nome ? "" : "none";
     document.getElementById("tabbtn-" + nome).classList.toggle("active", aba === nome);
   }
-  if (aba === "alerta") renderAlerta();
-  if (aba === "meus") carregarMeus();
-  if (aba === "painel") carregarPainel();
+  if (aba === "alerta") renderAlerta();  if (aba === "painel") carregarPainel();
 }
