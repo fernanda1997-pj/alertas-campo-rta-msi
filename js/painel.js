@@ -11,6 +11,8 @@ let painelState = {
 let mapaPainel = null, camadaMarcadores = null;
 
 const STATUS_ABERTOS = ["novo", "visto", "em_andamento"];
+// Cores fixas (não seguem o tema): o mapa de fundo é sempre claro
+const COR_MAPA = { aberto: "#DC2626", resolvido: "#16A34A", descartado: "#94A3B8" };
 
 async function carregarPainel() {
   painelState.carregando = true; painelState.erro = "";
@@ -146,17 +148,32 @@ function desenharMapa(lista) {
 
   camadaMarcadores = L.layerGroup().addTo(mapaPainel);
   const pontos = [];
-  for (const a of lista) {
+  // fechados desenhados primeiro, pra ficarem por baixo dos abertos (vermelhos)
+  const ordem = lista.slice().sort((a, b) => STATUS_ABERTOS.includes(a.status) - STATUS_ABERTOS.includes(b.status));
+  for (const a of ordem) {
     if (a.gps_lat == null || a.gps_lng == null) continue;
     const ll = [Number(a.gps_lat), Number(a.gps_lng)];
     pontos.push(ll);
-    const cor = getComputedStyle(document.documentElement).getPropertyValue(statusPorId(a.status).cor.replace(/^var\((.*)\)$/, "$1")).trim() || "#DC2626";
+    // No mapa: todo alerta ainda aberto (novo, visto, em andamento) é vermelho;
+    // resolvido verde, descartado cinza. O status detalhado fica na lista e no tooltip.
+    const aberto = STATUS_ABERTOS.includes(a.status);
+    const cor = aberto ? COR_MAPA.aberto : a.status === "resolvido" ? COR_MAPA.resolvido : COR_MAPA.descartado;
     L.circleMarker(ll, {
-      radius: a.gravidade === "urgente" ? 10 : 7, color: "#fff", weight: 2, fillColor: cor, fillOpacity: 0.95
+      radius: a.gravidade === "urgente" ? 10 : 7, color: "#fff", weight: 2, fillColor: cor, fillOpacity: aberto ? 0.95 : 0.7
     }).bindTooltip(esc(a.categoria) + " · " + esc(statusPorId(a.status).rotulo))
       .on("click", () => abrirFicha(a.id))
       .addTo(camadaMarcadores);
   }
+  const legenda = L.control({ position: "bottomleft" });
+  legenda.onAdd = () => {
+    const div = L.DomUtil.create("div", "legenda-mapa");
+    div.innerHTML = '<span><i style="background:' + COR_MAPA.aberto + '"></i>Em alerta</span>'
+      + '<span><i style="background:' + COR_MAPA.resolvido + '"></i>Resolvido</span>'
+      + '<span><i style="background:' + COR_MAPA.descartado + '"></i>Descartado</span>'
+      + '<span class="legenda-mapa-dica">ponto maior = urgente</span>';
+    return div;
+  };
+  legenda.addTo(mapaPainel);
   if (pontos.length) mapaPainel.fitBounds(pontos, { padding: [30, 30], maxZoom: 13 });
   else mapaPainel.setView([-8.5, -48.3], 6); // Tocantins
 }
