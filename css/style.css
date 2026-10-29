@@ -247,6 +247,7 @@ textarea.input{ height:auto; padding:10px 14px; resize:vertical; }
 .auto-opcao.limpar{ display:block; text-align:center; min-height:46px; color:var(--danger); border-style:dashed; }
 .chip-mini{ min-height:34px; padding:5px 11px; font-size:12.5px; }
 .chip-limpar{ color:var(--danger); border-style:dashed; }
+.baixar-ficha{ display:flex; flex-direction:column; gap:6px; margin-top:6px; padding-top:12px; border-top:1px dashed var(--border); }
 .ficha-progresso{ display:flex; align-items:center; gap:10px; font-size:12.5px; color:var(--text-muted); }
 .ficha-progresso .barra{ flex:1 1 auto; height:8px; border-radius:4px; background:var(--surface-soft); border:1px solid var(--border); overflow:hidden; }
 .ficha-progresso .barra i{ display:block; height:100%; background:var(--ok); }

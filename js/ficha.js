@@ -62,6 +62,16 @@ function fichaDoSre(regiao, sre, fPref) {
   const trecho = bloco.trechos.find((t) => t.sres.some((y) => y[0] === sre));
   return { r: bloco.r, f: bloco.f, tr: trecho.tr };
 }
+// Uma planilha por região + tipo + mês, com TODOS os trechos (uma aba cada, igual à
+// ficha real) — não é por trecho; trocar de trecho não perde nada (cada um fica salvo)
+function htmlBaixarFicha(r, f, comp) {
+  const bloco = blocoFicha(r, f);
+  return '<div class="baixar-ficha"><button class="btn btn-outline btn-grande" id="btn-baixar-ficha">Baixar a ficha completa (.xlsx)</button>'
+    + '<div class="rotulo-mini">' + esc(rotuloRegiao(r)) + " · " + esc(FICHAS[f].nome.toLowerCase()) + " · " + esc(rotuloMes(comp))
+    + " — <b>todos os " + (bloco ? bloco.trechos.length : "") + " trechos numa planilha só</b>, com o que todo mundo marcou. "
+    + "Não precisa baixar por trecho: pode trocar de trecho à vontade, nada se perde. Baixe no fim, com internet.</div></div>";
+}
+
 // Aviso ao lado do S.R.E. na ficha quando o GPS não consegue preencher as linhas dele
 function avisoTracado(regiao, sre) {
   const t = situacaoTracado(regiao, sre);
@@ -422,7 +432,7 @@ function renderFicha() {
     + (outros ? '<div class="rotulo-mini">Também preenchendo este trecho: ' + outros + "</div>" : "")
     + '<div class="ficha-cab-grupos"><span class="ficha-km">km</span>' + bloco.grupos.map((g) => '<span class="ficha-cel" title="' + esc(g.nome) + '">' + esc(g.nome.replace(/^(Condição d[oa] |Elementos de |Sinalização )/, "").slice(0, 6)) + "</span>").join("") + "</div>"
     + '<div class="ficha-linhas">' + linhasHtml + "</div>"
-    + '<button class="btn btn-outline btn-grande" id="btn-baixar-ficha">Baixar planilha da ' + esc(rotuloRegiao(s.r)) + " (.xlsx)</button>"
+    + htmlBaixarFicha(s.r, s.f, s.comp)
     + barraAuto
     + "</div>"
     + (s.editando ? htmlEditorLinha(bloco, linhas, juntas) : "")
@@ -626,6 +636,7 @@ function renderEscolherFicha(m) {
     + trechos.map((t) => '<option value="' + esc(t.tr) + '"' + (t.tr === s.tr ? " selected" : "") + ">" + esc(t.tr + " — " + t.tn) + "</option>").join("") + "</select></div>"
     + '<div class="field"><label>Mês da ficha</label><input class="input" type="month" id="inp-f-mes" value="' + esc(s.comp) + '"></div>'
     + '<button class="btn btn-primary btn-grande" id="btn-abrir-ficha" disabled>Abrir ficha</button>'
+    + htmlBaixarFicha(r, f, s.comp)
     + "</div>";
   s.r = r; s.f = f;
   const selT = m.querySelector("#sel-f-trecho"), btn = m.querySelector("#btn-abrir-ficha");
@@ -636,6 +647,7 @@ function renderEscolherFicha(m) {
   m.querySelector("#inp-f-mes").addEventListener("change", (e) => { if (/^\d{4}-\d{2}$/.test(e.target.value)) s.comp = e.target.value; });
   btn.addEventListener("click", () => abrirFichaInspecao(s.r, s.f, selT.value, s.comp));
   m.querySelector("#btn-ficha-gps").addEventListener("click", () => acharFichaPeloLocal());
+  m.querySelector("#btn-baixar-ficha").addEventListener("click", () => baixarFichaXlsx(s.r, s.f, s.comp));
   atualizar();
 }
 
