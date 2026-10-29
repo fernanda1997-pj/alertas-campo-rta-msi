@@ -6,6 +6,7 @@
 // e quem junta (a marcação mais recente de cada célula vale) é o app.
 //
 //   GET  ?comp=2026-10&r=R1&f=np[&tr=20]   todos os arquivos daquela ficha (ou só de um trecho)
+//   GET  ?comp=2026-10                      todos os arquivos do mês, de todas as regiões (Painel)
 //   POST {comp, r, f, tr, dispositivo, nome, marcas}   grava/substitui o arquivo deste aparelho
 
 const { conectar, gravarArquivo, listarPasta } = require("./_lib/msgraph");
@@ -21,7 +22,8 @@ const MAX_LINHAS = 4000;
 
 function pasta(q) { return "fichas/" + q.comp + "/" + q.r + "-" + q.f; }
 
-function parametrosOk(q) {
+function parametrosOk(q, mesInteiro) {
+  if (mesInteiro) return COMP_OK.test(q.comp || "") && !q.r && !q.f && q.tr === undefined;
   return COMP_OK.test(q.comp || "") && REG_OK.test(q.r || "") && TIPO_OK.test(q.f || "") && (q.tr === undefined || TR_OK.test(q.tr));
 }
 
@@ -49,7 +51,8 @@ module.exports = async (req, res) => {
   }
   const q = req.method === "GET" ? (req.query || {}) : (req.body || {});
   const p = { comp: q.comp, r: q.r, f: q.f, tr: q.tr === "" || q.tr == null ? undefined : String(q.tr) };
-  if (!parametrosOk(p)) {
+  const mesInteiro = req.method === "GET" && !p.r && !p.f;
+  if (!parametrosOk(p, mesInteiro)) {
     res.status(400).json({ erro: "parâmetros inválidos (comp, r, f, tr)" });
     return;
   }
@@ -57,8 +60,14 @@ module.exports = async (req, res) => {
   if (!con) return;
   try {
     if (req.method === "GET") {
-      const arquivos = (await listarPasta(con, pasta(p)))
-        .filter((i) => i.file && /\.json$/.test(i.name) && (!p.tr || i.name.startsWith(p.tr + "__")));
+      // mês inteiro: cada subpasta "R1-pav", "R13-np"... do mês
+      const pastas = mesInteiro
+        ? (await listarPasta(con, "fichas/" + p.comp)).filter((i) => i.folder && /^R\d{1,2}-(pav|np)$/.test(i.name)).map((i) => "fichas/" + p.comp + "/" + i.name)
+        : [pasta(p)];
+      const arquivos = [];
+      for (const pa of pastas) {
+        arquivos.push(...(await listarPasta(con, pa)).filter((i) => i.file && /\.json$/.test(i.name) && (!p.tr || i.name.startsWith(p.tr + "__"))));
+      }
       const saida = [];
       for (let i = 0; i < arquivos.length; i += 20) {
         const lote = await Promise.all(arquivos.slice(i, i + 20).map(async (arq) => {

@@ -130,9 +130,9 @@ async function montarFichaXlsx(bloco, marcasPorTrecho) {
 
 // Junta o que tem no SharePoint (todos os trechos, todo mundo) com o que está
 // só neste celular, monta a planilha e baixa.
-async function baixarFichaXlsx(r, f, comp) {
+async function baixarFichaXlsx(r, f, comp, botaoTocado) {
   const bloco = blocoFicha(r, f);
-  const botao = document.getElementById("btn-baixar-ficha");
+  const botao = botaoTocado || document.getElementById("btn-baixar-ficha");
   const textoBotao = botao ? botao.textContent : "";
   if (botao) { botao.disabled = true; botao.textContent = "Montando a planilha…"; }
   try {

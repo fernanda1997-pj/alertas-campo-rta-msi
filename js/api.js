@@ -54,6 +54,7 @@ async function apiEnviarFoto(caminho, arquivo) {
 function apiLerFicha(comp, r, f, tr) {
   return chamarApi("GET", "api/ficha?comp=" + encodeURIComponent(comp) + "&r=" + encodeURIComponent(r) + "&f=" + encodeURIComponent(f) + (tr ? "&tr=" + encodeURIComponent(tr) : ""));
 }
+function apiLerFichasDoMes(comp) { return chamarApi("GET", "api/ficha?comp=" + encodeURIComponent(comp)); }
 function apiGravarFicha(doc) { return chamarApi("POST", "api/ficha", doc); }
 
 // Endereço da foto pra usar direto em <img src> / link

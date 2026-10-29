@@ -57,9 +57,25 @@ function ordenarParaTriagem(lista) {
   });
 }
 
+// Alertas | Fichas percorridas (js/painel-fichas.js)
+function htmlModoPainel() {
+  const modo = painelState.modo || "alertas";
+  return '<div class="seletor-ficha painel-modo">'
+    + '<button class="seg' + (modo === "alertas" ? " ativo" : "") + '" data-modo-painel="alertas">Alertas</button>'
+    + '<button class="seg' + (modo === "fichas" ? " ativo" : "") + '" data-modo-painel="fichas">Fichas percorridas</button></div>';
+}
+function ligarModoPainel(m) {
+  m.querySelectorAll("[data-modo-painel]").forEach((b) => b.addEventListener("click", () => {
+    painelState.modo = b.dataset.modoPainel;
+    if (painelState.modo === "fichas" && !fichasPainel.docs && !fichasPainel.carregando) carregarFichasPainel();
+    else renderPainel();
+  }));
+}
+
 function renderPainel() {
   const m = document.getElementById("mount-painel");
   if (!m) return;
+  if (painelState.modo === "fichas") { renderPainelFichas(m); return; }
   const s = painelState;
   const contagem = {};
   for (const a of s.lista) contagem[a.status] = (contagem[a.status] || 0) + 1;
@@ -87,7 +103,7 @@ function renderPainel() {
   ).join("");
 
   m.innerHTML = '<div class="painel-tela">'
-    + '<div class="painel-toolbar">'
+    + '<div class="painel-toolbar">' + htmlModoPainel()
     + '<div class="chips-contagem">' + chips + "</div>"
     + '<div class="painel-filtros">'
     + '<select class="input input-mini" id="f-regiao"><option value="">Todas as regiões</option>' + opts(Object.keys(REGIOES), s.filtroRegiao, rotuloRegiao) + "</select>"
@@ -109,6 +125,7 @@ function renderPainel() {
     + "</div></div>"
     + (s.aberto ? htmlFicha(s.aberto) : "");
 
+  ligarModoPainel(m);
   m.querySelectorAll("[data-filtro-status]").forEach((b) => b.addEventListener("click", () => { s.filtroStatus = b.dataset.filtroStatus; renderPainel(); }));
   m.querySelector("#f-regiao").addEventListener("change", (e) => { s.filtroRegiao = e.target.value; renderPainel(); });
   m.querySelector("#f-gravidade").addEventListener("change", (e) => { s.filtroGravidade = e.target.value; renderPainel(); });
@@ -128,22 +145,59 @@ function renderPainel() {
 const ZOOM_MARCOS_KM = 12; // a partir daqui 1 km já tem uns 25 px na tela
 
 // Posição de cada km inteiro de cada S.R.E. (calculada uma vez só): anda pela
-// linha usando os metros acumulados de SRE_KM, os mesmos do cálculo do km do alerta.
+// linha usando os metros acumulados de SRE_KM, na escala da ficha (situacaoTracado,
+// js/geo.js) — o mesmo km que o GPS mostra. Traçado que não bate com a ficha: sem marcos.
 let _marcosKm = null;
 function marcosKm() {
   if (_marcosKm) return _marcosKm;
   _marcosKm = [];
   for (const s of SRE_KM) {
-    let i = 1;
-    for (let km = 0; km * 1000 <= s.c; km++) {
-      const alvo = km * 1000;
-      while (i < s.p.length - 1 && s.p[i][2] < alvo) i++;
-      const a = s.p[i - 1], b = s.p[i];
-      const t = b[2] === a[2] ? 0 : Math.max(0, Math.min(1, (alvo - a[2]) / (b[2] - a[2])));
-      _marcosKm.push({ sre: s.s, km, ll: [a[1] + t * (b[1] - a[1]), a[0] + t * (b[0] - a[0])] });
+    const t = situacaoTracado(s.r, s.s);
+    if (t.naoBate) continue;
+    const fator = t.fator || 1;
+    for (let km = 0; km * 1000 / fator <= s.c + 1; km++) {
+      _marcosKm.push({ sre: s.s, km, ll: pontoNoTracado(s, km * 1000 / fator) });
     }
   }
   return _marcosKm;
+}
+
+// [lat, lng] a tantos metros do início do traçado do S.R.E.
+function pontoNoTracado(s, metros) {
+  let i = 1;
+  while (i < s.p.length - 1 && s.p[i][2] < metros) i++;
+  const a = s.p[i - 1], b = s.p[i];
+  const t = b[2] === a[2] ? 0 : Math.max(0, Math.min(1, (metros - a[2]) / (b[2] - a[2])));
+  return [a[1] + t * (b[1] - a[1]), a[0] + t * (b[0] - a[0])];
+}
+
+// Pedaço do traçado entre dois pontos (em metros desde o início): [[lat, lng], ...]
+function recorteDoTracado(s, m0, m1) {
+  const pts = [pontoNoTracado(s, m0)];
+  for (const p of s.p) if (p[2] > m0 && p[2] < m1) pts.push([p[1], p[0]]);
+  pts.push(pontoNoTracado(s, m1));
+  return pts;
+}
+
+// Marcos de km de cada S.R.E. (0 = INÍCIO, igual à ficha), só de perto —
+// de longe seriam milhares de etiquetas uma em cima da outra. Ficam num
+// painel por baixo dos pontos de alerta, pra nunca esconder um vermelho.
+function ligarMarcosKm(mapa) {
+  mapa.createPane("marcos").style.zIndex = 390;
+  const camadaKm = L.layerGroup().addTo(mapa);
+  const desenharMarcos = () => {
+    camadaKm.clearLayers();
+    if (mapa.getZoom() < ZOOM_MARCOS_KM) return;
+    const area = mapa.getBounds().pad(0.2);
+    for (const mk of marcosKm()) {
+      if (!area.contains(mk.ll)) continue;
+      L.marker(mk.ll, {
+        pane: "marcos", keyboard: false,
+        icon: L.divIcon({ className: "", iconSize: null, html: '<span class="marco-km' + (mk.km === 0 ? " marco-km-zero" : "") + '">' + (mk.km === 0 ? "0 · " + mk.sre : mk.km) + "</span>" })
+      }).bindTooltip("S.R.E. " + mk.sre + " · km " + mk.km + (mk.km === 0 ? " (INÍCIO)" : "")).addTo(camadaKm);
+    }
+  };
+  mapa.on("zoomend moveend", desenharMarcos);
 }
 
 // Pra preencher a ficha: agrupa por S.R.E. e segue o km do INÍCIO pro FIM
@@ -152,20 +206,26 @@ function ordenarPorSreKm(lista) {
     (a.sre || "~").localeCompare(b.sre || "~") || (Number(a.km_sre) || 0) - (Number(b.km_sre) || 0));
 }
 
-function desenharMapa(lista) {
+// Mapa de fundo do Painel (alertas e fichas): ruas/satélite, os trechos do contrato
+// bem clarinhos e os marcos de km de perto. O innerHTML do painel recria a div a
+// cada render — o mapa precisa ser recriado junto.
+function novoMapaPainel() {
   const div = document.getElementById("mapa-painel");
-  if (!div || typeof L === "undefined") return;
-  // o innerHTML do painel recria a div a cada render — o mapa precisa ser recriado junto
+  if (!div || typeof L === "undefined") return null;
   if (mapaPainel) { mapaPainel.remove(); mapaPainel = null; }
   mapaPainel = L.map(div, { zoomControl: true });
   const ruas = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19, attribution: "© OpenStreetMap" });
   const satelite = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", { maxZoom: 19, attribution: "© Esri" });
   ruas.addTo(mapaPainel);
   L.control.layers({ "Mapa": ruas, "Satélite": satelite }, null, { position: "topright" }).addTo(mapaPainel);
-
-  // trechos do contrato, bem clarinhos, só pra dar referência
   const linhas = SEGMENTOS_GEO.map((seg) => seg.pontos.map((p) => [p[1], p[0]]));
   L.polyline(linhas, { color: "#1E3A72", weight: 2, opacity: 0.35, interactive: false }).addTo(mapaPainel);
+  ligarMarcosKm(mapaPainel);
+  return mapaPainel;
+}
+
+function desenharMapa(lista) {
+  if (!novoMapaPainel()) return;
 
   camadaMarcadores = L.layerGroup().addTo(mapaPainel);
   const pontos = [];
@@ -196,25 +256,6 @@ function desenharMapa(lista) {
     return div;
   };
   legenda.addTo(mapaPainel);
-
-  // Marcos de km de cada S.R.E. (0 = INÍCIO, igual à ficha), só de perto —
-  // de longe seriam milhares de etiquetas uma em cima da outra. Ficam num
-  // painel por baixo dos pontos de alerta, pra nunca esconder um vermelho.
-  mapaPainel.createPane("marcos").style.zIndex = 390;
-  const camadaKm = L.layerGroup().addTo(mapaPainel);
-  const desenharMarcos = () => {
-    camadaKm.clearLayers();
-    if (mapaPainel.getZoom() < ZOOM_MARCOS_KM) return;
-    const area = mapaPainel.getBounds().pad(0.2);
-    for (const mk of marcosKm()) {
-      if (!area.contains(mk.ll)) continue;
-      L.marker(mk.ll, {
-        pane: "marcos", keyboard: false,
-        icon: L.divIcon({ className: "", iconSize: null, html: '<span class="marco-km' + (mk.km === 0 ? " marco-km-zero" : "") + '">' + (mk.km === 0 ? "0 · " + mk.sre : mk.km) + "</span>" })
-      }).bindTooltip("S.R.E. " + mk.sre + " · km " + mk.km + (mk.km === 0 ? " (INÍCIO)" : "")).addTo(camadaKm);
-    }
-  };
-  mapaPainel.on("zoomend moveend", desenharMarcos);
 
   if (pontos.length) mapaPainel.fitBounds(pontos, { padding: [30, 30], maxZoom: 13 });
   else mapaPainel.setView([-8.5, -48.3], 6); // Tocantins

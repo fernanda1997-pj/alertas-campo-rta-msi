@@ -269,6 +269,10 @@ textarea.input{ height:auto; padding:10px 14px; resize:vertical; }
 .linha-alerta-topo{ display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
 .painel-tela{ display:flex; flex-direction:column; }
 .painel-toolbar{ display:flex; flex-wrap:wrap; gap:10px; align-items:center; padding:12px 14px; background:var(--surface); border-bottom:1px solid var(--border); }
+.painel-modo{ flex:0 0 auto; min-width:280px; }
+.resumo-condicao{ display:flex; flex-wrap:wrap; gap:6px; font-size:12px; font-weight:600; }
+.resumo-condicao span{ display:inline-flex; align-items:center; gap:5px; padding:2px 8px; border-radius:10px; background:color-mix(in srgb, var(--cor) 14%, var(--surface)); color:var(--text); }
+.resumo-condicao i{ width:9px; height:9px; border-radius:2px; background:var(--cor); }
 .chips-contagem{ display:flex; flex-wrap:wrap; gap:6px; }
 .chip-contagem{ --cor:var(--accent); display:inline-flex; align-items:center; gap:6px; height:34px; padding:0 12px 0 6px; border-radius:18px; border:1px solid var(--border);
   background:var(--surface); color:var(--text); font-size:12.5px; font-weight:600; cursor:pointer; font-family:inherit; }
