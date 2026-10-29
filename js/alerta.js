@@ -94,7 +94,13 @@ function renderAlerta() {
     + "<b>" + esc(g.rotulo) + "</b>" + (g.dica ? "<small>" + esc(g.dica) + "</small>" : "") + "</button>"
   ).join("");
 
+  // sem login: o nome é pedido uma vez e fica no celular (js/app.js)
+  const blocoNome = NOME_USUARIO ? "" : '<div class="cartao-nome"><label for="campo-nome">Seu nome</label>'
+    + '<div class="linha-nome"><input class="input" id="campo-nome" maxlength="60" autocomplete="name" placeholder="Ex.: João Silva"><button class="btn btn-primary" id="btn-salvar-nome">OK</button></div>'
+    + '<div class="rotulo-mini">Só na primeira vez. Fica salvo neste celular e aparece pro escritório em cada alerta.</div></div>';
+
   const falta = [];
+  if (!NOME_USUARIO) falta.push("seu nome");
   if (!s.fotos.length) falta.push("foto");
   if (!s.regiao || !s.trecho) falta.push("local");
   if (!Object.keys(s.itens).length) falta.push("o que você viu");
@@ -102,7 +108,7 @@ function renderAlerta() {
   if (observacaoObrigatoria(s) && s.observacao.trim().length < 5) falta.push("observação");
   const podeEnviar = !falta.length && !s.enviando && !s.localizando;
 
-  m.innerHTML = '<div class="alerta-tela">' + faixaConexao + faixaFila + faixaFilaMsg
+  m.innerHTML = '<div class="alerta-tela">' + faixaConexao + faixaFila + faixaFilaMsg + blocoNome
     + '<div class="passo"><div class="passo-titulo"><span class="passo-num">1</span>Foto</div>' + blocoFotos + blocoLocal + "</div>"
     + '<div class="passo"><div class="passo-titulo"><span class="passo-num">2</span>O que você viu neste km?</div>' + blocoFicha + "</div>"
     + '<div class="passo"><div class="passo-titulo"><span class="passo-num">3</span>Gravidade</div><div class="linha-gravidade">' + botoesGravidade + "</div></div>"
@@ -165,6 +171,12 @@ function ligarEventosAlerta(m) {
     }
   });
   const bEnviar = m.querySelector("#btn-enviar"); if (bEnviar) bEnviar.addEventListener("click", enviarAlertaDaTela);
+  const bNome = m.querySelector("#btn-salvar-nome");
+  if (bNome) {
+    const salvar = () => { const v = m.querySelector("#campo-nome").value; if (v.trim().length >= 2) { definirNome(v); renderAlerta(); } };
+    bNome.addEventListener("click", salvar);
+    m.querySelector("#campo-nome").addEventListener("keydown", (e) => { if (e.key === "Enter") salvar(); });
+  }
   ligarBotaoFila(m);
 }
 
@@ -303,7 +315,7 @@ async function enviarAlertaDaTela() {
     regiao: s.regiao, trecho: s.trecho, sre: s.sre, kmSre: s.km, extensaoKm: s.extensaoKm, distanciaEixo: s.distancia,
     tipoFicha: s.tipoFicha || "pav", itens: Object.assign({}, s.itens), categoria: resumoItens(s.itens),
     gravidade: s.gravidade, observacao: s.observacao.trim(),
-    autorEmail: USUARIO_ATUAL ? USUARIO_ATUAL.email : null
+    autorNome: NOME_USUARIO, dispositivo: DISPOSITIVO
   };
 
   const guardar = async () => {
@@ -349,8 +361,10 @@ async function enviarAlerta(item, aoProgredir) {
       console.error("Não consegui gravar a legenda na foto, mandando a original:", erro);
     }
     const caminho = pasta + "/" + (i + 1) + ".jpg";
-    const { error } = await supabaseClient.storage.from("alertas").upload(caminho, arquivo, { upsert: true, contentType: arquivo.type || "image/jpeg" });
-    if (error) throw error;
+    // sem upsert: o site não tem permissão de sobrescrever. Se a foto já subiu
+    // numa tentativa anterior (o sinal caiu depois), o "já existe" conta como ok.
+    const { error } = await supabaseClient.storage.from("alertas").upload(caminho, arquivo, { upsert: false, contentType: arquivo.type || "image/jpeg" });
+    if (error && !/already exists|duplicate/i.test(error.message || "") && String(error.statusCode) !== "409") throw error;
     caminhos.push(caminho);
   }
   if (aoProgredir) aoProgredir("Registrando o alerta…");
@@ -362,7 +376,8 @@ async function enviarAlerta(item, aoProgredir) {
     gps_lat: item.gpsLat, gps_lng: item.gpsLng,
     tipo_ficha: item.tipoFicha, itens: item.itens || {},
     categoria: item.categoria, gravidade: item.gravidade, observacao: item.observacao || null,
-    fotos: caminhos, capturado_em: item.capturadoEm, autor_email: item.autorEmail
+    fotos: caminhos, capturado_em: item.capturadoEm,
+    autor_nome: item.autorNome || null, dispositivo: item.dispositivo || null
   });
   if (error && error.code !== "23505") throw error; // 23505 = já gravado numa tentativa anterior
 }

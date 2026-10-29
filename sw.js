@@ -5,14 +5,12 @@
 // - bibliotecas da CDN (versão presa na URL): cache-first;
 // - QUALQUER outra coisa (Supabase, tiles do mapa): nunca interceptar. Já
 //   houve bug no Fotos de Campo por guardar resposta do Supabase em cache.
-const CACHE_ESTATICO = "alertas-campo-static-v1";
+const CACHE_ESTATICO = "alertas-campo-static-v2";
 const CDN_HOSTNAME = "cdn.jsdelivr.net";
 
 const ARQUIVOS_APP = [
   "./",
   "index.html",
-  "app.html",
-  "redefinir-senha.html",
   "manifest.json",
   "css/style.css",
   "js/config.js",
@@ -27,8 +25,6 @@ const ARQUIVOS_APP = [
   "js/meus.js",
   "js/painel.js",
   "js/app.js",
-  "js/auth.js",
-  "js/redefinir-senha.js",
   "js/registrar-sw.js",
   "logo/LOGO RTA.png",
   "logo/LOGO MSI.jpeg",
@@ -77,7 +73,7 @@ self.addEventListener("fetch", (evento) => {
           caches.open(CACHE_ESTATICO).then((cache) => cache.put(req, copia));
           return resposta;
         })
-        .catch(() => caches.match(req, { ignoreSearch: true }).then((match) => match || caches.match("app.html")))
+        .catch(() => caches.match(req, { ignoreSearch: true }).then((match) => match || caches.match("index.html")))
     );
     return;
   }

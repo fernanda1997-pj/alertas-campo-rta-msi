@@ -1,38 +1,48 @@
-// Shell da aplicação: sessão, quem é do escritório, troca de aba, sair.
+// Shell da aplicação: quem está usando (sem login), troca de aba.
+//
+// Sem login (decisão de 2026-10-29): a pessoa digita o nome uma vez e ele fica
+// salvo no celular, junto com um id aleatório do aparelho. O nome vai em cada
+// alerta (e em quem tratou, no Painel); o id é o que monta "Meus alertas".
+// Limpar os dados do navegador apaga os dois — aí "Meus alertas" recomeça vazio.
 
-let USUARIO_ATUAL = null;
-let EH_ADMIN = false;
+const CHAVE_NOME = "alertas_nome";
+const CHAVE_DISPOSITIVO = "alertas_dispositivo";
+
+function lerLocal(chave) { try { return localStorage.getItem(chave) || ""; } catch (e) { return ""; } }
+function gravarLocal(chave, valor) { try { localStorage.setItem(chave, valor); } catch (e) { /* modo privado: segue sem guardar */ } }
+
+let NOME_USUARIO = lerLocal(CHAVE_NOME);
+const DISPOSITIVO = lerLocal(CHAVE_DISPOSITIVO) || (() => {
+  const id = crypto.randomUUID();
+  gravarLocal(CHAVE_DISPOSITIVO, id);
+  return id;
+})();
+
+function definirNome(nome) {
+  NOME_USUARIO = nome.trim();
+  gravarLocal(CHAVE_NOME, NOME_USUARIO);
+  mostrarNome();
+}
+
+function mostrarNome() {
+  document.getElementById("usuario-atual").textContent = NOME_USUARIO || "";
+  document.getElementById("btn-trocar-nome").textContent = NOME_USUARIO ? "Trocar nome" : "";
+}
+
+document.getElementById("btn-trocar-nome").addEventListener("click", () => {
+  const novo = prompt("Seu nome (aparece pro escritório):", NOME_USUARIO);
+  if (novo != null && novo.trim()) { definirNome(novo); renderAlerta(); }
+});
 
 (async function iniciar() {
-  const { data } = await supabaseClient.auth.getSession();
-  if (!data.session) {
-    window.location.href = "index.html";
-    return;
-  }
-  USUARIO_ATUAL = data.session.user;
-  document.getElementById("usuario-atual").textContent = USUARIO_ATUAL.email;
+  mostrarNome();
   pedirArmazenamentoPersistente();
-
   await atualizarContagemFila();
   renderAlerta();
   processarFila();
-
-  // Aba Painel só aparece pra quem está na tabela alertas_admins
-  if (!semSinal()) {
-    const { data: admin } = await supabaseClient.from("alertas_admins").select("email").ilike("email", USUARIO_ATUAL.email).maybeSingle();
-    EH_ADMIN = !!admin;
-  }
-  if (EH_ADMIN) {
-    document.getElementById("tabbtn-painel").style.display = "";
-    atualizarSeloPainel();
-    setInterval(atualizarSeloPainel, 120000); // aviso de alerta novo sem precisar recarregar
-  }
+  atualizarSeloPainel();
+  setInterval(atualizarSeloPainel, 120000); // aviso de alerta novo sem precisar recarregar
 })();
-
-document.getElementById("btn-sair").addEventListener("click", async () => {
-  await supabaseClient.auth.signOut();
-  window.location.href = "index.html";
-});
 
 function mudarAba(aba) {
   for (const nome of ["alerta", "meus", "painel"]) {

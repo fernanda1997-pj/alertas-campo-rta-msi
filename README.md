@@ -5,19 +5,19 @@ foto + GPS → S.R.E. e km da Ficha de Inspeção → coluna da ficha → gravid
 observação. Funciona sem sinal (fila no celular). O escritório acompanha e
 responde na aba **Painel** e baixa as **Linhas da ficha (CSV)**.
 
-HTML/JS puro, sem build. Usa o **mesmo projeto Supabase do Fotos de Campo**
-(mesmo login), com tabelas e bucket próprios.
+HTML/JS puro, sem build. Usa o **mesmo projeto Supabase do Fotos de Campo**,
+com tabela e bucket próprios.
+
+**Sem login** (decisão de 2026-10-29): quem tem o link usa tudo, inclusive o
+Painel. A pessoa digita o nome uma vez e ele fica salvo no aparelho. As
+travas que sobram estão no topo do `schema.sql`: ninguém apaga nada pelo
+site e, depois de criado, o alerta só muda nos campos de tratamento.
+**Não divulgar o link fora da equipe.**
 
 ## Publicar (primeira vez)
 
 1. **Supabase** (projeto do Fotos de Campo) → SQL Editor → colar e rodar `schema.sql`.
-2. **Authentication → URL Configuration → Redirect URLs**: incluir
-   `https://<endereço-do-vercel>/redefinir-senha.html`.
-3. **Vercel** → Add New Project → importar o repositório → Deploy (sem configuração).
-4. Quem cuida do Painel: e-mails na tabela `alertas_admins`
-   (`insert into alertas_admins (email) values ('fulano@...');`).
-
-Usuários de campo são os mesmos do Fotos de Campo (Authentication → Users).
+2. **Vercel** → Add New Project → importar o repositório → Deploy (sem configuração).
 
 ## Atualizar o km dos S.R.E.
 

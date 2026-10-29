@@ -175,6 +175,11 @@ textarea.input{ height:auto; padding:10px 14px; resize:vertical; }
 .chip-opcao{ min-height:42px; padding:8px 14px; border-radius:22px; border:1px solid var(--border); background:var(--surface); color:var(--text);
   font-size:13.5px; font-weight:600; cursor:pointer; font-family:inherit; }
 .chip-opcao.ativo{ background:var(--accent-bg); border-color:var(--accent-bg); color:#fff; }
+.cartao-nome{ display:flex; flex-direction:column; gap:6px; padding:12px 14px; border-radius:12px; background:var(--accent-soft); border:1px solid color-mix(in srgb, var(--accent) 30%, var(--border)); }
+.cartao-nome label{ font-size:13px; font-weight:700; }
+.linha-nome{ display:flex; gap:8px; }
+.linha-nome .btn{ flex:0 0 auto; padding:0 18px; }
+.usuario-chip .btn-ghost:empty{ display:none; }
 .seletor-ficha{ display:grid; grid-template-columns:1fr 1fr; border:1px solid var(--border); border-radius:10px; overflow:hidden; }
 .seletor-ficha .seg{ height:38px; border:none; background:var(--surface); color:var(--text-muted); font-weight:700; font-size:13px; cursor:pointer; font-family:inherit; }
 .seletor-ficha .seg.ativo{ background:var(--accent-bg); color:#fff; }

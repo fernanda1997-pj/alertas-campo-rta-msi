@@ -9,7 +9,7 @@ async function carregarMeus() {
   renderMeus();
   try {
     const { data, error } = await supabaseClient.from("alertas")
-      .select("*").eq("created_by", USUARIO_ATUAL.id)
+      .select("*").eq("dispositivo", DISPOSITIVO) // sem login: "meus" = os que saíram deste celular
       .order("created_at", { ascending: false }).limit(200);
     if (error) throw error;
     meusState.lista = data || [];

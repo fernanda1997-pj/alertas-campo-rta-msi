@@ -2,7 +2,7 @@
   "name": "Alertas de Campo RTA-MSI",
   "short_name": "Alertas",
   "description": "Avise o escritório do que está errado na rodovia: foto, local pelo GPS e observação",
-  "start_url": "app.html",
+  "start_url": "./",
   "scope": ".",
   "display": "standalone",
   "background_color": "#0E1524",

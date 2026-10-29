@@ -1,4 +1,4 @@
-// "Painel" (escritório, só quem está em alertas_admins): todos os alertas no
+// "Painel" (escritório — sem login, aberto pra quem tiver o link): todos os alertas no
 // mapa e em lista, com filtro, e a ficha de cada um pra mudar o status,
 // responder ao campo e anotar se virou ponto crítico.
 
@@ -82,7 +82,7 @@ function renderPainel() {
     + '<div class="rotulo-mini">' + esc(rotuloRegiao(a.regiao)) + (a.trecho ? " › " + esc(a.trecho) : "") + "</div>"
     + (a.sre ? '<div class="km-sre">' + esc(textoSreKmDoAlerta(a)) + "</div>" : "")
     + '<div class="obs obs-curta">' + esc(a.observacao) + "</div>"
-    + '<div class="rotulo-mini">' + esc(a.autor_email || "") + "</div>"
+    + '<div class="rotulo-mini">' + esc(a.autor_nome || "") + "</div>"
     + "</button>"
   ).join("");
 
@@ -163,6 +163,15 @@ function desenharMapa(lista) {
   else mapaPainel.setView([-8.5, -48.3], 6); // Tocantins
 }
 
+// Sem login: quem trata é o nome salvo neste computador/celular. Pergunta uma vez.
+function quemTrata() {
+  if (!NOME_USUARIO) {
+    const nome = prompt("Seu nome (fica registrado em quem tratou o alerta):", "");
+    if (nome && nome.trim()) definirNome(nome);
+  }
+  return NOME_USUARIO || "sem nome";
+}
+
 async function abrirFicha(id) {
   const s = painelState;
   const a = s.lista.find((x) => x.id === id);
@@ -174,9 +183,9 @@ async function abrirFicha(id) {
   // abrir um alerta novo já marca como "visto" — o campo vê que alguém olhou
   if (a.status === "novo") {
     const agora = new Date().toISOString();
-    const { error } = await supabaseClient.from("alertas").update({ status: "visto", tratado_por: USUARIO_ATUAL.email, tratado_em: agora }).eq("id", id);
+    const { error } = await supabaseClient.from("alertas").update({ status: "visto", tratado_por: quemTrata(), tratado_em: agora }).eq("id", id);
     if (!error) {
-      Object.assign(a, { status: "visto", tratado_por: USUARIO_ATUAL.email, tratado_em: agora });
+      Object.assign(a, { status: "visto", tratado_por: quemTrata(), tratado_em: agora });
       s.aberto = Object.assign({}, a);
       atualizarSeloPainel();
     }
@@ -205,7 +214,7 @@ function htmlFicha(a) {
     + "<div><span>Marcar na ficha</span>" + esc(textoItensFicha(a)) + "</div>"
     + "<div><span>Coordenada</span>" + (temCoord ? Number(a.gps_lat).toFixed(5) + ", " + Number(a.gps_lng).toFixed(5)
       + ' · <a href="https://www.google.com/maps?q=' + a.gps_lat + "," + a.gps_lng + '" target="_blank" rel="noopener">abrir no Google Maps</a>' : "sem GPS") + "</div>"
-    + "<div><span>Registrado</span>" + fmtDataHora(a.capturado_em) + " por " + esc(a.autor_email || "?") + "</div>"
+    + "<div><span>Registrado</span>" + fmtDataHora(a.capturado_em) + " por " + esc(a.autor_nome || "?") + "</div>"
     + (a.tratado_por ? "<div><span>Último tratamento</span>" + esc(a.tratado_por) + " · " + fmtDataHora(a.tratado_em) + "</div>" : "")
     + "</div>"
     + '<div class="field"><label>Status</label><div class="linha-status">' + botoesStatus + "</div></div>"
@@ -243,7 +252,7 @@ async function salvarFicha() {
   renderPainel();
   const mudancas = {
     status: a.status, resposta: a.resposta || null, ponto_critico: a.ponto_critico || null,
-    tratado_por: USUARIO_ATUAL.email, tratado_em: new Date().toISOString()
+    tratado_por: quemTrata(), tratado_em: new Date().toISOString()
   };
   const { error } = await supabaseClient.from("alertas").update(mudancas).eq("id", a.id);
   s.salvando = false;
@@ -284,7 +293,7 @@ function salvarCsv(nome, cabecalho, linhas) {
 
 // Um alerta por linha, com uma coluna por grupo da ficha (código da coluna marcada)
 function baixarCsv(lista) {
-  const col = ["created_at", "capturado_em", "status", "gravidade", "tipo_ficha", "categoria", "regiao", "trecho", "sre", "km_sre", "faixa_km", "distancia_eixo_m", "gps_lat", "gps_lng", "observacao", "resposta", "ponto_critico", "autor_email", "tratado_por", "tratado_em"];
+  const col = ["created_at", "capturado_em", "status", "gravidade", "tipo_ficha", "categoria", "regiao", "trecho", "sre", "km_sre", "faixa_km", "distancia_eixo_m", "gps_lat", "gps_lng", "observacao", "resposta", "ponto_critico", "autor_nome", "tratado_por", "tratado_em"];
   const cab = col.concat(TODOS_GRUPOS.map((g) => g.id), ["fora_da_ficha"]);
   const linhas = lista.map((a) => {
     const f = faixaDoAlerta(a);
@@ -330,7 +339,7 @@ function baixarLinhasFicha(lista) {
 // Número de alertas "novo" no botão da aba — é o aviso pro escritório
 function atualizarSeloPainel() {
   const b = document.getElementById("tabbtn-painel");
-  if (!b || !EH_ADMIN) return;
+  if (!b) return;
   supabaseClient.from("alertas").select("id", { count: "exact", head: true }).eq("status", "novo")
     .then(({ count }) => { b.innerHTML = "Painel" + (count ? ' <span class="selo-novos">' + count + "</span>" : ""); });
 }
