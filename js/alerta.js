@@ -46,8 +46,11 @@ function renderAlerta() {
     m.innerHTML = '<div class="alerta-tela">' + faixaConexao + faixaFila
       + '<div class="enviado-ok"><div class="enviado-icone">✓</div><div class="enviado-titulo">' + esc(s.msgOk) + "</div>"
       + '<div class="enviado-sub">O escritório recebe no Painel.</div>'
-      + '<button class="btn btn-primary btn-grande" id="btn-novo-alerta">Registrar outro alerta</button></div></div>';
+      + (fichaState.tr ? '<button class="btn btn-primary btn-grande" id="btn-voltar-ficha" style="margin-bottom:10px;">Voltar pra ficha (trecho ' + esc(fichaState.tr) + ")</button>" : "")
+      + '<button class="btn ' + (fichaState.tr ? "btn-outline" : "btn-primary") + ' btn-grande" id="btn-novo-alerta">Registrar outro alerta</button></div></div>';
     m.querySelector("#btn-novo-alerta").addEventListener("click", () => { alertaState = estadoInicialAlerta(); renderAlerta(); });
+    const bFicha = m.querySelector("#btn-voltar-ficha");
+    if (bFicha) bFicha.addEventListener("click", () => { alertaState = estadoInicialAlerta(); mudarAba("ficha"); });
     ligarBotaoFila(m);
     return;
   }

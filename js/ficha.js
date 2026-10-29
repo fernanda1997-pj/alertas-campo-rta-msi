@@ -78,6 +78,21 @@ function opcaoExtenso(f, grupoId, k, rotulo) {
   return o ? { t: o.t, d: o.d || "" } : { t: rotuloCurto(rotulo || ""), d: "" };
 }
 
+// Mais de um X no mesmo grupo (a ficha real aceita: remendo E buraco no mesmo km).
+// Só onde os problemas somam; nos outros grupos as opções se excluem. A marcação
+// guarda os rótulos juntos com "|", na ordem das colunas; a coluna boa é sempre sozinha.
+const GRUPOS_MULTIPLOS = new Set(["pavimento", "drenagem"]);
+function listaCodigos(c) { return c ? String(c).split("|").filter(Boolean) : []; }
+function codigoAlternado(g, atual, r) {
+  const k = g.rotulos.indexOf(r);
+  if (!r || k <= 0 || !GRUPOS_MULTIPLOS.has(g.id)) return r;
+  const lista = listaCodigos(atual).filter((x) => g.rotulos.indexOf(x) > 0);
+  const nova = lista.includes(r) ? lista.filter((x) => x !== r) : lista.concat(r);
+  return nova.sort((a, b) => g.rotulos.indexOf(a) - g.rotulos.indexOf(b)).join("|");
+}
+function piorIndice(g, c) { return Math.max(-1, ...listaCodigos(c).map((x) => g.rotulos.indexOf(x))); } // -1 = vazio
+function textoExtenso(f, g, c) { return listaCodigos(c).map((x) => opcaoExtenso(f, g.id, g.rotulos.indexOf(x), x).t).join(" + "); }
+
 // Todas as linhas do trecho na ordem da ficha: [{sre, ini, fim, i, chave}]
 function linhasDoTrecho(trecho) {
   const out = [];
@@ -350,12 +365,12 @@ function renderFicha() {
   const algumAuto = Object.values(s.auto).some(Boolean);
   const barraAuto = '<div class="auto-barra"><div class="auto-barra-topo"><b>Preencher ao passar</b><span class="rotulo-mini">'
     + (algumAuto ? "" : "toque num grupo") + "</span>"
+    + '<button class="btn btn-outline btn-mini" id="btn-alerta-ficha">📷 Alerta</button>'
     + '<label class="chave-auto"><input type="checkbox" id="chk-auto"' + (s.autoLigado ? " checked" : "") + "> ligado</label></div>"
     + '<div class="auto-grupos">' + bloco.grupos.map((g) => {
-      const k = s.auto[g.id] ? g.rotulos.indexOf(s.auto[g.id]) : -1;
-      const ex = k >= 0 ? opcaoExtenso(s.f, g.id, k, s.auto[g.id]) : null;
+      const k = piorIndice(g, s.auto[g.id]);
       return '<button class="auto-btn' + (k < 0 ? " vazia" : k === 0 ? " boa" : " ruim") + '" data-auto-abrir="' + g.id + '">'
-        + "<span>" + esc(GRUPO_CURTO[g.id] || g.nome) + "</span><b>" + (ex ? esc(ex.t) : "escolher") + "</b></button>";
+        + "<span>" + esc(GRUPO_CURTO[g.id] || g.nome) + "</span><b>" + (k >= 0 ? esc(textoExtenso(s.f, g, s.auto[g.id])) : "escolher") + "</b></button>";
     }).join("") + "</div></div>";
 
   let linhasHtml = "", sreAnterior = "";
@@ -371,8 +386,10 @@ function renderFicha() {
       + '<span class="ficha-km">' + numBR(l.ini) + "–" + numBR(l.fim) + "</span>"
       + bloco.grupos.map((g) => {
         const mk = marcas[g.id];
-        const k = mk && mk.c ? g.rotulos.indexOf(mk.c) : -1;
-        return '<span class="ficha-cel' + (k < 0 ? " vazia" : k === 0 ? " boa" : " ruim") + '" title="' + esc(g.nome + (k >= 0 ? ": " + opcaoExtenso(s.f, g.id, k, mk.c).t + " · " + (mk.por || "?") : "")) + '">' + (k < 0 ? "·" : esc(rotuloCurto(mk.c))) + "</span>";
+        const k = mk ? piorIndice(g, mk.c) : -1;
+        const varios = k >= 0 && listaCodigos(mk.c).length > 1; // mostra o pior com "+"
+        return '<span class="ficha-cel' + (k < 0 ? " vazia" : k === 0 ? " boa" : " ruim") + '" title="' + esc(g.nome + (k >= 0 ? ": " + textoExtenso(s.f, g, mk.c) + " · " + (mk.por || "?") : "")) + '">'
+          + (k < 0 ? "·" : esc(rotuloCurto(g.rotulos[k])) + (varios ? "+" : "")) + "</span>";
       }).join("")
       + (nAlertas ? '<span class="ficha-alerta" title="' + nAlertas + ' alerta(s) aberto(s) neste km">⚠' + nAlertas + "</span>" : "")
       + "</button>";
@@ -396,16 +413,26 @@ function renderFicha() {
 
   m.querySelector("#btn-trocar-ficha").addEventListener("click", fecharFicha);
   m.querySelector("#chk-auto").addEventListener("change", (e) => { s.autoLigado = e.target.checked; s.ultimaLinhaAuto = null; });
+  // foto + alerta sem sair do trajeto: abre a câmera no Novo alerta; o GPS da ficha
+  // continua acompanhando (e preenchendo) por trás, e depois do envio tem "Voltar pra ficha"
+  m.querySelector("#btn-alerta-ficha").addEventListener("click", () => {
+    if (alertaState.msgOk) alertaState = estadoInicialAlerta();
+    mudarAba("alerta");
+    if (!alertaState.fotos.length) abrirCameraContinua();
+  });
   m.querySelectorAll("[data-auto-abrir]").forEach((b) => b.addEventListener("click", () => { s.escolhendoAuto = b.dataset.autoAbrir; renderFicha(); }));
   if (s.escolhendoAuto) {
     const fechar = () => { s.escolhendoAuto = null; renderFicha(); };
     m.querySelector("#auto-fundo").addEventListener("click", fechar);
     m.querySelector("#btn-fechar-auto").addEventListener("click", fechar);
+    const pronto = m.querySelector("#btn-pronto-auto"); if (pronto) pronto.addEventListener("click", fechar);
   }
   m.querySelectorAll("[data-auto-grupo]").forEach((b) => b.addEventListener("click", () => {
     const g = b.dataset.autoGrupo, r = b.dataset.autoRotulo;
-    s.auto[g] = r;
-    s.escolhendoAuto = null;
+    const grupo = bloco.grupos.find((x) => x.id === g);
+    s.auto[g] = r ? codigoAlternado(grupo, s.auto[g], r) : "";
+    // grupo de vários X: problema liga/desliga e a escolha fica aberta (fecha no "Pronto")
+    if (!(r && GRUPOS_MULTIPLOS.has(g) && grupo.rotulos.indexOf(r) > 0)) s.escolhendoAuto = null;
     // trocou a condição dentro de uma linha: vale pra ela se ainda está na
     // primeira metade (ou se a linha não tinha nada); passou da metade, a
     // ficha pede o PREDOMINANTE — a linha fica como estava e a nova começa na próxima
@@ -470,15 +497,18 @@ function htmlEscolherAuto(bloco) {
   const s = fichaState;
   const g = bloco.grupos.find((x) => x.id === s.escolhendoAuto);
   if (!g) return "";
+  const multiplo = GRUPOS_MULTIPLOS.has(g.id), marcados = listaCodigos(s.auto[g.id]);
   return '<div class="ficha-fundo" id="auto-fundo"></div><div class="auto-folha" role="dialog">'
-    + '<div class="auto-folha-topo"><div><b>' + esc(g.nome) + '</b><div class="rotulo-mini">condição daqui pra frente — vale pra cada linha por onde passar</div></div>'
+    + '<div class="auto-folha-topo"><div><b>' + esc(g.nome) + '</b><div class="rotulo-mini">condição daqui pra frente — vale pra cada linha por onde passar'
+    + (multiplo ? ". <b>Pode marcar mais de um problema</b> (na planilha, o X vai no pior e todos vão nas observações)." : "") + "</div></div>"
     + '<button class="btn btn-ghost" id="btn-fechar-auto" aria-label="Fechar">✕</button></div>'
     + g.rotulos.map((r, k) => {
       const ex = opcaoExtenso(s.f, g.id, k, r);
-      return '<button class="auto-opcao' + (k === 0 ? " boa" : " ruim") + (s.auto[g.id] === r ? " ativo" : "") + '" data-auto-grupo="' + g.id + '" data-auto-rotulo="' + esc(r) + '">'
-        + "<b>" + esc(ex.t) + "</b>" + (ex.d ? "<span>" + esc(ex.d) + "</span>" : "") + "<i>" + esc(rotuloCurto(r)) + "</i></button>";
+      return '<button class="auto-opcao' + (k === 0 ? " boa" : " ruim") + (marcados.includes(r) ? " ativo" : "") + '" data-auto-grupo="' + g.id + '" data-auto-rotulo="' + esc(r) + '">'
+        + "<b>" + (multiplo && k > 0 ? (marcados.includes(r) ? "☑ " : "☐ ") : "") + esc(ex.t) + "</b>" + (ex.d ? "<span>" + esc(ex.d) + "</span>" : "") + "<i>" + esc(rotuloCurto(r)) + "</i></button>";
     }).join("")
     + (s.auto[g.id] ? '<button class="auto-opcao limpar" data-auto-grupo="' + g.id + '" data-auto-rotulo="">Parar de preencher este grupo</button>' : "")
+    + (multiplo ? '<button class="btn btn-primary btn-grande" id="btn-pronto-auto">Pronto</button>' : "")
     + "</div>";
 }
 
@@ -497,7 +527,8 @@ function htmlEditorLinha(bloco, linhas, juntas) {
       const mk = marcas[g.id];
       return '<div class="grupo-ficha"><div class="grupo-ficha-nome">' + esc(g.nome)
         + (mk && mk.c ? ' <span class="rotulo-mini">· ' + esc(mk.por || "?") + ", " + tempoDesde(mk.em) + "</span>" : "") + '</div><div class="chips-opcoes">'
-        + g.rotulos.map((r, k) => '<button class="chip-opcao chip-mini' + (mk && mk.c === r ? " ativo" : "") + '" data-ed-grupo="' + g.id + '" data-ed-rotulo="' + esc(r) + '" title="' + esc(r) + '">'
+        + (GRUPOS_MULTIPLOS.has(g.id) ? '<div class="rotulo-mini" style="flex-basis:100%">pode marcar mais de um problema (na planilha, X no pior e todos nas observações)</div>' : "")
+        + g.rotulos.map((r, k) => '<button class="chip-opcao chip-mini' + (mk && listaCodigos(mk.c).includes(r) ? " ativo" : "") + '" data-ed-grupo="' + g.id + '" data-ed-rotulo="' + esc(r) + '" title="' + esc(r) + '">'
           + esc(opcaoExtenso(s.f, g.id, k, r).t) + "</button>").join("")
         + (mk && mk.c ? '<button class="chip-opcao chip-mini chip-limpar" data-ed-grupo="' + g.id + '" data-ed-rotulo="">limpar</button>' : "")
         + "</div></div>";
@@ -514,7 +545,9 @@ function ligarEditorLinha(m, bloco, linhas) {
   m.querySelector("#btn-fechar-editor").addEventListener("click", fechar);
   m.querySelector("#editor-fundo").addEventListener("click", fechar);
   m.querySelectorAll("[data-ed-grupo]").forEach((b) => b.addEventListener("click", () => {
-    marcar(s.editando, b.dataset.edGrupo, b.dataset.edRotulo);
+    const g = bloco.grupos.find((x) => x.id === b.dataset.edGrupo);
+    const atual = ((marcacoesJuntas()[s.editando] || {})[g.id] || {}).c;
+    marcar(s.editando, g.id, b.dataset.edRotulo ? codigoAlternado(g, atual, b.dataset.edRotulo) : "");
     guardarFicha();
     renderFicha();
   }));

@@ -6,7 +6,7 @@
 // marcações juntadas de todo mundo. Nada mais da planilha é tocado —
 // formatação, fórmulas, conferência e gráficos ficam como estão; o Excel
 // recalcula tudo ao abrir (fullCalcOnLoad). Linha sem marcação sai em branco
-// pro técnico completar.
+// pro técnico completar. As OBSERVAÇÕES do molde (de outro mês) são apagadas.
 
 const NS_PLANILHA = "http://schemas.openxmlformats.org/spreadsheetml/2006/main";
 
@@ -47,6 +47,22 @@ function escreverCelula(doc, c, texto) {
   c.appendChild(is);
 }
 
+// Coluna "OBSERVAÇÕES" da aba (procura o cabeçalho; texto compartilhado ou na própria célula)
+function colunaObservacoes(doc, textos) {
+  for (const c of doc.getElementsByTagNameNS(NS_PLANILHA, "c")) {
+    const v = c.getAttribute("t") === "s" ? textos[Number(c.textContent)] : c.textContent;
+    if (String(v || "").trim().toUpperCase() === "OBSERVAÇÕES") return c.getAttribute("r").replace(/\d+/g, "");
+  }
+  return null;
+}
+
+async function textosCompartilhados(zip) {
+  const arq = zip.file("xl/sharedStrings.xml");
+  if (!arq) return [];
+  const doc = new DOMParser().parseFromString(await arq.async("string"), "application/xml");
+  return Array.from(doc.getElementsByTagNameNS(NS_PLANILHA, "si"), (si) => si.textContent);
+}
+
 // Caminho de cada aba dentro do .xlsx: nome da aba -> "xl/worksheets/sheetN.xml"
 async function mapaDeAbas(zip) {
   const parser = new DOMParser();
@@ -70,25 +86,34 @@ async function montarFichaXlsx(bloco, marcasPorTrecho) {
   const zip = await JSZip.loadAsync(await resp.arrayBuffer());
   const abas = await mapaDeAbas(zip);
   const parser = new DOMParser(), ser = new XMLSerializer();
+  const textos = await textosCompartilhados(zip);
   let marcadas = 0;
   for (const trecho of bloco.trechos) {
     const caminho = abas[trecho.aba];
     if (!caminho || !zip.file(caminho)) continue;
     const doc = parser.parseFromString(await zip.file(caminho).async("string"), "application/xml");
     const sheetData = doc.getElementsByTagNameNS(NS_PLANILHA, "sheetData")[0];
+    const colObs = colunaObservacoes(doc, textos);
     const marcas = marcasPorTrecho[trecho.tr] || {};
     for (const [sre, marcos, linhasExcel] of trecho.sres) {
       for (let i = 0; i < linhasExcel.length; i++) {
         const linha = linhasExcel[i];
         const mk = marcas[sre + "|" + marcos[i]] || {};
+        const obs = [];
         for (const g of bloco.grupos) {
-          const escolhido = mk[g.id] && mk[g.id].c;
+          // mais de um problema no grupo (remendo E buraco): a conferência da ficha
+          // aceita UM X por grupo, então o X vai no pior e o conjunto vai nas OBSERVAÇÕES
+          const c = mk[g.id] && mk[g.id].c;
+          const k0 = piorIndice(g, c);
+          if (listaCodigos(c).length > 1) obs.push(g.nome + ": " + textoExtenso(bloco.f, g, c));
           g.cols.forEach((col, k) => {
-            const x = escolhido && g.rotulos[k] === escolhido;
+            const x = k === k0;
             escreverCelula(doc, celulaXml(doc, sheetData, col + linha, linha), x ? "X" : "");
             if (x) marcadas++;
           });
         }
+        // a observação do mês do molde não vale pra esta ficha
+        if (colObs) escreverCelula(doc, celulaXml(doc, sheetData, colObs + linha, linha), obs.join("; "));
       }
     }
     zip.file(caminho, ser.serializeToString(doc));

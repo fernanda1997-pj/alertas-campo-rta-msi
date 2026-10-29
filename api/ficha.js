@@ -34,7 +34,7 @@ function limparMarcas(marcas) {
     const g2 = {};
     for (const [g, m] of Object.entries(grupos).slice(0, 10)) {
       if (!GRUPO_OK.test(g) || !m || typeof m !== "object" || isNaN(Date.parse(m.em))) continue;
-      g2[g] = { c: String(m.c == null ? "" : m.c).slice(0, 40), em: new Date(m.em).toISOString(), por: String(m.por || "").slice(0, 60) };
+      g2[g] = { c: String(m.c == null ? "" : m.c).slice(0, 120), em: new Date(m.em).toISOString(), por: String(m.por || "").slice(0, 60) };
     }
     if (Object.keys(g2).length) saida[linha] = g2;
   }
