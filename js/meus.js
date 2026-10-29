@@ -2,18 +2,14 @@
 // cada um. É o retorno que faz o pessoal continuar avisando — sem ele, o
 // alerta vira um buraco negro e o campo volta pro WhatsApp.
 
-let meusState = { carregou: false, carregando: false, erro: "", lista: [], urls: {} };
+let meusState = { carregou: false, carregando: false, erro: "", lista: [] };
 
 async function carregarMeus() {
   meusState.carregando = true; meusState.erro = "";
   renderMeus();
   try {
-    const { data, error } = await supabaseClient.from("alertas")
-      .select("*").eq("dispositivo", DISPOSITIVO) // sem login: "meus" = os que saíram deste celular
-      .order("created_at", { ascending: false }).limit(200);
-    if (error) throw error;
-    meusState.lista = data || [];
-    meusState.urls = await urlsAssinadas(meusState.lista.map((a) => a.fotos[0]).filter(Boolean));
+    // sem login: "meus" = os que saíram deste celular
+    meusState.lista = (await apiListarAlertas()).filter((a) => a.dispositivo === DISPOSITIVO).slice(0, 200);
     meusState.carregou = true;
   } catch (erro) {
     console.error(erro);
@@ -21,16 +17,6 @@ async function carregarMeus() {
   }
   meusState.carregando = false;
   renderMeus();
-}
-
-// Links temporários (1 h) pras fotos — o bucket é privado
-async function urlsAssinadas(caminhos) {
-  const saida = {};
-  if (!caminhos.length) return saida;
-  const { data, error } = await supabaseClient.storage.from("alertas").createSignedUrls(caminhos, 3600);
-  if (error) { console.error(error); return saida; }
-  for (const d of data || []) if (d.signedUrl) saida[d.path] = d.signedUrl;
-  return saida;
 }
 
 async function renderMeus() {
@@ -50,7 +36,7 @@ async function renderMeus() {
   ).join("");
 
   const cartoes = s.lista.map((a) => {
-    const url = a.fotos[0] && s.urls[a.fotos[0]];
+    const url = a.fotos[0] && urlFoto(a.fotos[0]);
     return '<div class="cartao-alerta">'
       + (url ? '<a class="cartao-alerta-foto" href="' + esc(url) + '" target="_blank" rel="noopener"><img src="' + esc(url) + '" alt="" loading="lazy"></a>' : '<div class="cartao-alerta-foto vazio">sem foto</div>')
       + '<div class="cartao-alerta-corpo">'

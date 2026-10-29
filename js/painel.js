@@ -4,7 +4,7 @@
 
 let painelState = {
   carregou: false, carregando: false, erro: "",
-  lista: [], urls: {},
+  lista: [],
   filtroStatus: "abertos", filtroRegiao: "", filtroGravidade: "", filtroCategoria: "", filtroSre: "", filtroMes: "", ordem: "triagem",
   aberto: null, salvando: false, msgFicha: ""
 };
@@ -16,9 +16,7 @@ async function carregarPainel() {
   painelState.carregando = true; painelState.erro = "";
   renderPainel();
   try {
-    const { data, error } = await supabaseClient.from("alertas").select("*").order("created_at", { ascending: false }).limit(2000);
-    if (error) throw error;
-    painelState.lista = data || [];
+    painelState.lista = await apiListarAlertas();
     painelState.carregou = true;
   } catch (erro) {
     console.error(erro);
@@ -26,7 +24,7 @@ async function carregarPainel() {
   }
   painelState.carregando = false;
   renderPainel();
-  atualizarSeloPainel();
+  if (painelState.carregou) atualizarSeloPainel(painelState.lista);
 }
 
 function alertasFiltrados() {
@@ -178,26 +176,25 @@ async function abrirFicha(id) {
   if (!a) return;
   s.aberto = Object.assign({}, a);
   s.msgFicha = "";
-  const faltam = a.fotos.filter((c) => !s.urls[c]);
-  if (faltam.length) Object.assign(s.urls, await urlsAssinadas(faltam));
+  renderPainel();
   // abrir um alerta novo já marca como "visto" — o campo vê que alguém olhou
   if (a.status === "novo") {
-    const agora = new Date().toISOString();
-    const { error } = await supabaseClient.from("alertas").update({ status: "visto", tratado_por: quemTrata(), tratado_em: agora }).eq("id", id);
-    if (!error) {
-      Object.assign(a, { status: "visto", tratado_por: quemTrata(), tratado_em: agora });
-      s.aberto = Object.assign({}, a);
-      atualizarSeloPainel();
+    try {
+      const salvo = await apiAtualizarAlerta(id, { status: "visto", tratado_por: quemTrata() });
+      Object.assign(a, salvo);
+      if (s.aberto && s.aberto.id === id) s.aberto = Object.assign({}, a);
+      atualizarSeloPainel(s.lista);
+      renderPainel();
+    } catch (erro) {
+      console.error("Não consegui marcar como visto:", erro);
     }
   }
-  renderPainel();
 }
 
 function htmlFicha(a) {
   const s = painelState;
-  const fotos = a.fotos.map((c) => s.urls[c]
-    ? '<a href="' + esc(s.urls[c]) + '" target="_blank" rel="noopener"><img src="' + esc(s.urls[c]) + '" alt=""></a>'
-    : '<div class="ficha-foto-vazia">foto indisponível</div>').join("");
+  const fotos = a.fotos.map((c) =>
+    '<a href="' + esc(urlFoto(c)) + '" target="_blank" rel="noopener"><img src="' + esc(urlFoto(c)) + '" alt="" loading="lazy"></a>').join("");
   const temCoord = a.gps_lat != null && a.gps_lng != null;
   const botoesStatus = STATUS.map((st) =>
     '<button class="btn-status' + (a.status === st.id ? " ativo" : "") + '" data-status="' + st.id + '" style="--cor:' + st.cor + '">' + esc(st.rotulo) + "</button>"
@@ -250,21 +247,19 @@ async function salvarFicha() {
   a.ponto_critico = m.querySelector("#ficha-pc").value.trim();
   s.salvando = true; s.msgFicha = "";
   renderPainel();
-  const mudancas = {
-    status: a.status, resposta: a.resposta || null, ponto_critico: a.ponto_critico || null,
-    tratado_por: quemTrata(), tratado_em: new Date().toISOString()
-  };
-  const { error } = await supabaseClient.from("alertas").update(mudancas).eq("id", a.id);
-  s.salvando = false;
-  if (error) {
-    s.msgFicha = "Erro ao salvar: " + error.message;
-  } else {
+  try {
+    const salvo = await apiAtualizarAlerta(a.id, {
+      status: a.status, resposta: a.resposta || null, ponto_critico: a.ponto_critico || null, tratado_por: quemTrata()
+    });
     const original = s.lista.find((x) => x.id === a.id);
-    Object.assign(original, mudancas);
+    Object.assign(original, salvo);
     s.aberto = Object.assign({}, original);
     s.msgFicha = "Salvo.";
-    atualizarSeloPainel();
+    atualizarSeloPainel(s.lista);
+  } catch (erro) {
+    s.msgFicha = "Erro ao salvar: " + (erro.message || erro);
   }
+  s.salvando = false;
   renderPainel();
 }
 
@@ -336,10 +331,18 @@ function baixarLinhasFicha(lista) {
       .concat(TODOS_GRUPOS.map((g) => l.itens[g.id] || ""), [l.obs.join(" | "), l.n])));
 }
 
-// Número de alertas "novo" no botão da aba — é o aviso pro escritório
-function atualizarSeloPainel() {
+// Número de alertas "novo" no botão da aba — é o aviso pro escritório.
+// Com a lista já em mãos, só conta; sem ela, busca (cada busca lê todos os
+// alertas no SharePoint, por isso o app só chama de tempos em tempos).
+async function atualizarSeloPainel(lista) {
   const b = document.getElementById("tabbtn-painel");
-  if (!b) return;
-  supabaseClient.from("alertas").select("id", { count: "exact", head: true }).eq("status", "novo")
-    .then(({ count }) => { b.innerHTML = "Painel" + (count ? ' <span class="selo-novos">' + count + "</span>" : ""); });
+  if (!b || semSinal()) return;
+  try {
+    const todos = lista || await apiListarAlertas();
+    if (!lista) alertasAbertosCache = todos.filter((a) => ["novo", "visto", "em_andamento"].includes(a.status) && a.gps_lat != null);
+    const n = todos.filter((a) => a.status === "novo").length;
+    b.innerHTML = "Painel" + (n ? ' <span class="selo-novos">' + n + "</span>" : "");
+  } catch (erro) {
+    console.error("Não consegui contar os alertas novos:", erro);
+  }
 }

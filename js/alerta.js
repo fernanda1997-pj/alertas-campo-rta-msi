@@ -286,12 +286,8 @@ async function procurarAlertasProximos(lat, lng) {
   if (semSinal()) return;
   try {
     if (!alertasAbertosCache) {
-      const { data, error } = await supabaseClient.from("alertas")
-        .select("id, categoria, status, created_at, gps_lat, gps_lng")
-        .in("status", ["novo", "visto", "em_andamento"])
-        .not("gps_lat", "is", null);
-      if (error) throw error;
-      alertasAbertosCache = data || [];
+      alertasAbertosCache = (await apiListarAlertas())
+        .filter((a) => ["novo", "visto", "em_andamento"].includes(a.status) && a.gps_lat != null);
     }
     alertaState.proximos = alertasAbertosCache
       .map((a) => Object.assign({}, a, { distancia: distanciaMetros(lat, lng, Number(a.gps_lat), Number(a.gps_lng)) }))
@@ -354,21 +350,23 @@ async function enviarAlerta(item, aoProgredir) {
   const caminhos = [];
   for (let i = 0; i < item.fotos.length; i++) {
     if (aoProgredir) aoProgredir("Enviando foto " + (i + 1) + " de " + item.fotos.length + "…");
-    let arquivo = item.fotos[i];
+    // o servidor só aceita JPEG: a foto sempre passa pelo carimbo (que também converte)
+    let arquivo;
     try {
-      arquivo = await prepararFotoAlerta(arquivo, item);
+      arquivo = await prepararFotoAlerta(item.fotos[i], item);
     } catch (erro) {
-      console.error("Não consegui gravar a legenda na foto, mandando a original:", erro);
+      console.error("Não consegui processar a foto:", erro);
+      throw new Error("não consegui abrir a foto " + (i + 1) + " (formato não suportado?). Tire de novo pela câmera do app.");
     }
     const caminho = pasta + "/" + (i + 1) + ".jpg";
-    // sem upsert: o site não tem permissão de sobrescrever. Se a foto já subiu
-    // numa tentativa anterior (o sinal caiu depois), o "já existe" conta como ok.
-    const { error } = await supabaseClient.storage.from("alertas").upload(caminho, arquivo, { upsert: false, contentType: arquivo.type || "image/jpeg" });
-    if (error && !/already exists|duplicate/i.test(error.message || "") && String(error.statusCode) !== "409") throw error;
+    // se a foto já subiu numa tentativa anterior (o sinal caiu depois), o
+    // servidor não sobrescreve e responde ok
+    await apiEnviarFoto(caminho, arquivo);
     caminhos.push(caminho);
   }
   if (aoProgredir) aoProgredir("Registrando o alerta…");
-  const { error } = await supabaseClient.from("alertas").insert({
+  // reenviar o mesmo id não duplica: o servidor responde ok com jaExistia
+  await apiCriarAlerta({
     id: item.id,
     regiao: item.regiao || null, trecho: item.trecho || null, sre: item.sre || null,
     km_sre: typeof item.kmSre === "number" ? Math.round(item.kmSre * 1000) / 1000 : null,
@@ -379,7 +377,6 @@ async function enviarAlerta(item, aoProgredir) {
     fotos: caminhos, capturado_em: item.capturadoEm,
     autor_nome: item.autorNome || null, dispositivo: item.dispositivo || null
   });
-  if (error && error.code !== "23505") throw error; // 23505 = já gravado numa tentativa anterior
 }
 
 async function atualizarContagemFila() {

@@ -3,9 +3,10 @@
 // - arquivos do próprio site: network-first (quem tem sinal sempre pega a
 //   versão nova a cada deploy, sem precisar trocar o nome do cache);
 // - bibliotecas da CDN (versão presa na URL): cache-first;
-// - QUALQUER outra coisa (Supabase, tiles do mapa): nunca interceptar. Já
-//   houve bug no Fotos de Campo por guardar resposta do Supabase em cache.
-const CACHE_ESTATICO = "alertas-campo-static-v2";
+// - api/ (alertas e fotos no SharePoint) e qualquer outra origem (tiles do
+//   mapa): nunca interceptar. Já houve bug no Fotos de Campo por guardar
+//   resposta de dados em cache — a lista nunca mais atualizava.
+const CACHE_ESTATICO = "alertas-campo-static-v3";
 const CDN_HOSTNAME = "cdn.jsdelivr.net";
 
 const ARQUIVOS_APP = [
@@ -13,8 +14,7 @@ const ARQUIVOS_APP = [
   "index.html",
   "manifest.json",
   "css/style.css",
-  "js/config.js",
-  "js/supabase-client.js",
+  "js/api.js",
   "js/trechos-geo.js",
   "js/sre-km.js",
   "js/dados.js",
@@ -35,7 +35,6 @@ const ARQUIVOS_APP = [
 ];
 
 const ARQUIVOS_CDN = [
-  "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js",
   "https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js",
   "https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css"
 ];
@@ -64,6 +63,7 @@ self.addEventListener("fetch", (evento) => {
   const req = evento.request;
   if (req.method !== "GET") return;
   const url = new URL(req.url);
+  if (url.origin === self.location.origin && url.pathname.startsWith("/api/")) return; // dados: sempre direto na rede
 
   if (url.origin === self.location.origin) {
     evento.respondWith(

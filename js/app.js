@@ -41,7 +41,7 @@ document.getElementById("btn-trocar-nome").addEventListener("click", () => {
   renderAlerta();
   processarFila();
   atualizarSeloPainel();
-  setInterval(atualizarSeloPainel, 120000); // aviso de alerta novo sem precisar recarregar
+  setInterval(() => atualizarSeloPainel(), 300000); // aviso de alerta novo sem precisar recarregar (5 min)
 })();
 
 function mudarAba(aba) {
