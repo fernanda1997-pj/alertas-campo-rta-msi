@@ -1,0 +1,15 @@
+{
+  "name": "Alertas de Campo RTA-MSI",
+  "short_name": "Alertas",
+  "description": "Avise o escritório do que está errado na rodovia: foto, local pelo GPS e observação",
+  "start_url": "app.html",
+  "scope": ".",
+  "display": "standalone",
+  "background_color": "#0E1524",
+  "theme_color": "#1E3A72",
+  "icons": [
+    { "src": "icons/rta-msi-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/rta-msi-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/rta-msi-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

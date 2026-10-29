@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Redefinir senha — Alertas de Campo RTA-MSI</title>
+<link rel="stylesheet" href="css/style.css">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" href="logo/favicon.png">
+<link rel="apple-touch-icon" href="icons/rta-msi-180.png">
+<meta name="theme-color" content="#1E3A72">
+</head>
+<body>
+
+<div class="tela-login">
+  <div class="cartao-login">
+    <div style="display:flex; justify-content:center; margin-bottom:26px;">
+      <div class="logo-chip">
+        <img src="logo/LOGO RTA.png" alt="RTA" style="height:32px; width:auto;">
+        <div style="width:1px; height:26px; background:var(--border);"></div>
+        <span class="logo-msi-wrap"><img src="logo/LOGO MSI.jpeg" alt="MSI" style="height:26px; width:auto; border-radius:3px;"></span>
+      </div>
+    </div>
+
+    <div style="text-align:center; margin-bottom:24px;">
+      <div style="font-size:23px; font-weight:700; color:var(--accent);">Criar nova senha</div>
+      <div style="margin-top:6px; font-size:13px; color:var(--text-muted); line-height:1.5;">Escolha uma senha nova para sua conta</div>
+    </div>
+
+    <div style="background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:26px 22px; box-shadow:var(--shadow); display:flex; flex-direction:column; gap:16px;">
+      <div id="erro" class="banner-err" hidden></div>
+      <div id="msg-ok" class="banner-ok" hidden></div>
+
+      <form id="form-nova-senha" style="display:flex; flex-direction:column; gap:16px;">
+        <div class="field">
+          <label for="nova-senha">Nova senha</label>
+          <input class="input" type="password" id="nova-senha" required minlength="6" autocomplete="new-password">
+        </div>
+        <div class="field">
+          <label for="confirmar-senha">Confirmar nova senha</label>
+          <input class="input" type="password" id="confirmar-senha" required minlength="6" autocomplete="new-password">
+        </div>
+        <button type="submit" class="btn btn-primary" id="btn-salvar-senha" style="height:52px; font-size:15.5px;">Salvar nova senha</button>
+      </form>
+
+      <a href="index.html" id="link-ir-login" style="display:none; text-align:center; font-size:12.5px;">Ir para o login</a>
+    </div>
+
+    <div style="margin-top:22px; text-align:center; font-size:11.5px; color:var(--text-muted);">RTA · MSI Rodovias</div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="js/config.js"></script>
+<script src="js/supabase-client.js"></script>
+<script src="js/redefinir-senha.js"></script>
+<script src="js/registrar-sw.js"></script>
+</body>
+</html>

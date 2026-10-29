@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Alertas de Campo RTA-MSI</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="css/style.css">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" href="logo/favicon.png">
+<link rel="apple-touch-icon" href="icons/rta-msi-180.png">
+<meta name="theme-color" content="#1E3A72">
+</head>
+<body>
+
+<div class="shell">
+  <div class="topbar">
+    <img src="logo/LOGO RTA.png" alt="RTA" style="height:24px; width:auto;">
+    <div style="width:1px; height:20px; background:var(--border);"></div>
+    <span class="logo-msi-wrap"><img src="logo/LOGO MSI.jpeg" alt="MSI" style="height:20px; width:auto;"></span>
+    <div class="marca">Alertas de Campo</div>
+    <div class="tabs">
+      <button class="tab-btn active" id="tabbtn-alerta" onclick="mudarAba('alerta')">Novo alerta</button>
+      <button class="tab-btn" id="tabbtn-meus" onclick="mudarAba('meus')">Meus alertas</button>
+      <button class="tab-btn" id="tabbtn-painel" onclick="mudarAba('painel')" style="display:none;">Painel</button>
+    </div>
+    <div class="usuario-chip">
+      <span id="usuario-atual"></span>
+      <button class="btn btn-ghost" id="btn-sair">Sair</button>
+    </div>
+  </div>
+
+  <div class="conteudo">
+    <div id="aba-alerta" class="aba-centro">
+      <div id="mount-alerta" class="painel-app" style="width:440px; max-width:100%;"></div>
+      <input type="file" id="input-foto" accept="image/*" capture="environment" multiple style="display:none">
+    </div>
+    <div id="aba-meus" class="aba-centro" style="display:none;">
+      <div id="mount-meus" class="painel-app" style="width:640px; max-width:100%;"></div>
+    </div>
+    <div id="aba-painel" style="display:none;">
+      <div id="mount-painel" class="painel-app"></div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="js/config.js"></script>
+<script src="js/supabase-client.js"></script>
+<script src="js/trechos-geo.js"></script>
+<script src="js/sre-km.js"></script>
+<script src="js/dados.js"></script>
+<script src="js/geo.js"></script>
+<script src="js/foto.js"></script>
+<script src="js/fila.js"></script>
+<script src="js/alerta.js"></script>
+<script src="js/meus.js"></script>
+<script src="js/painel.js"></script>
+<script src="js/app.js"></script>
+<script src="js/registrar-sw.js"></script>
+</body>
+</html>

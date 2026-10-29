@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Alertas de Campo RTA-MSI</title>
+<link rel="stylesheet" href="css/style.css">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" href="logo/favicon.png">
+<link rel="apple-touch-icon" href="icons/rta-msi-180.png">
+<meta name="theme-color" content="#1E3A72">
+</head>
+<body>
+
+<div class="tela-login">
+  <div class="cartao-login">
+    <div style="display:flex; justify-content:center; margin-bottom:26px;">
+      <div class="logo-chip">
+        <img src="logo/LOGO RTA.png" alt="RTA" style="height:32px; width:auto;">
+        <div style="width:1px; height:26px; background:var(--border);"></div>
+        <span class="logo-msi-wrap"><img src="logo/LOGO MSI.jpeg" alt="MSI" style="height:26px; width:auto; border-radius:3px;"></span>
+      </div>
+    </div>
+
+    <div style="text-align:center; margin-bottom:24px;">
+      <div style="font-size:23px; font-weight:700; color:var(--accent);">Alertas de Campo</div>
+      <div style="margin-top:6px; font-size:13px; color:var(--text-muted); line-height:1.5;">Avise o escritório do que está errado na rodovia. Mesmo login do Fotos de Campo.</div>
+    </div>
+
+    <div class="cartao-login-box" style="display:flex; flex-direction:column; gap:16px;">
+      <div id="erro" class="banner-err" hidden></div>
+      <div id="msg-recuperacao" class="banner-ok" hidden></div>
+
+      <form id="form-login" style="display:flex; flex-direction:column; gap:14px;">
+        <div class="field">
+          <label for="email">E-mail</label>
+          <input class="input" type="email" id="email" required autocomplete="username">
+        </div>
+        <div class="field">
+          <label for="senha">Senha</label>
+          <input class="input" type="password" id="senha" required autocomplete="current-password">
+        </div>
+        <button type="submit" class="btn btn-primary" id="btn-entrar" style="height:52px; font-size:15.5px;">Entrar</button>
+        <a href="#" id="link-esqueci-senha" style="text-align:center; font-size:12.5px;">Esqueci minha senha</a>
+      </form>
+
+      <form id="form-recuperar" style="display:none; flex-direction:column; gap:14px;">
+        <div style="font-size:12.5px; color:var(--text-muted); line-height:1.5;">Informe seu e-mail de acesso — se ele existir, enviamos um link para você criar uma senha nova.</div>
+        <div class="field">
+          <label for="email-recuperar">E-mail</label>
+          <input class="input" type="email" id="email-recuperar" required autocomplete="username">
+        </div>
+        <button type="submit" class="btn btn-primary" id="btn-enviar-recuperacao" style="height:52px; font-size:15.5px;">Enviar link de recuperação</button>
+        <a href="#" id="link-voltar-login" style="text-align:center; font-size:12.5px;">Voltar para o login</a>
+      </form>
+    </div>
+
+    <div style="margin-top:22px; text-align:center; font-size:11.5px; color:var(--text-muted);">RTA · MSI Rodovias</div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="js/config.js"></script>
+<script src="js/supabase-client.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/registrar-sw.js"></script>
+</body>
+</html>
