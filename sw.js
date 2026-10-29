@@ -6,7 +6,7 @@
 // - api/ (alertas e fotos no SharePoint) e qualquer outra origem (tiles do
 //   mapa): nunca interceptar. Já houve bug no Fotos de Campo por guardar
 //   resposta de dados em cache — a lista nunca mais atualizava.
-const CACHE_ESTATICO = "alertas-campo-static-v7";
+const CACHE_ESTATICO = "alertas-campo-static-v8";
 const CDN_HOSTNAME = "cdn.jsdelivr.net";
 
 const ARQUIVOS_APP = [
