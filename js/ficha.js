@@ -416,7 +416,8 @@ function renderFicha() {
   // foto + alerta sem sair do trajeto: abre a câmera no Novo alerta; o GPS da ficha
   // continua acompanhando (e preenchendo) por trás, e depois do envio tem "Voltar pra ficha"
   m.querySelector("#btn-alerta-ficha").addEventListener("click", () => {
-    if (alertaState.msgOk) alertaState = estadoInicialAlerta();
+    // alerta começado (com foto) continua; senão nasce com o que já está gravado na ficha
+    if (alertaState.msgOk || !alertaState.fotos.length) alertaState = Object.assign(estadoInicialAlerta(), alertaDaFicha());
     mudarAba("alerta");
     if (!alertaState.fotos.length) abrirCameraContinua();
   });
@@ -490,6 +491,25 @@ function atualizarStatusFicha() {
     : semSinal() ? "Sem sinal — fica guardado no celular e sobe quando o sinal voltar."
     : s.ultimo ? "Salvo no celular e no SharePoint (" + tempoDesde(s.ultimo) + ")."
     : "Salvo no celular.";
+}
+
+// O que já está gravado na ficha neste ponto (a linha onde o GPS está; grupo sem
+// marcação nela, a condição do "preencher ao passar") vira o "o que você viu" do
+// alerta — a pessoa só tira a foto e escolhe a gravidade. O alerta guarda um
+// problema por grupo (o pior); havendo mais de um, o conjunto vai na observação.
+function alertaDaFicha() {
+  const s = fichaState, bloco = blocoFicha(s.r, s.f);
+  if (!bloco) return {};
+  const linha = s.linhaAtual && s.linhaAtual.chave ? (marcacoesJuntas()[s.linhaAtual.chave] || {}) : {};
+  const itens = {}, obs = [];
+  for (const g of bloco.grupos) {
+    const c = (linha[g.id] && linha[g.id].c) || s.auto[g.id];
+    const k = piorIndice(g, c);
+    const gAlerta = FICHAS[s.f].grupos.find((x) => x.id === g.id);
+    if (k > 0 && gAlerta && gAlerta.opcoes[k - 1]) itens[g.id] = gAlerta.opcoes[k - 1].c;
+    if (listaCodigos(c).filter((x) => g.rotulos.indexOf(x) > 0).length > 1) obs.push(g.nome + ": " + textoExtenso(s.f, g, c));
+  }
+  return { tipoFicha: s.f, itens, observacao: obs.join("; "), preFicha: { tr: s.tr, f: s.f, n: Object.keys(itens).length } };
 }
 
 // Escolha da condição de um grupo pro "preencher ao passar": botões grandes, por extenso

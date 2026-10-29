@@ -17,6 +17,7 @@ function estadoInicialAlerta() {
     proximos: [],           // alertas abertos perto daqui
     avisoRascunho: "",      // fotos recuperadas do rascunho (o app tinha fechado antes do Enviar)
     avisoCamera: "",        // a câmera do app não abriu e caiu na câmera do celular
+    preFicha: null,         // aberto pelo 📷 da aba Ficha: { tr, f, n } — itens já vieram de lá (js/ficha.js)
     enviando: false, progresso: "", msgOk: "", msgErro: ""
   };
 }
@@ -95,7 +96,11 @@ function renderAlerta() {
   }
 
   // ---- 2. O que viu: os grupos da ficha do tipo deste S.R.E. ----
-  const blocoFicha = htmlItensFicha(s);
+  const blocoFicha = (s.preFicha
+    ? '<div class="' + (s.preFicha.n ? "banner-ok" : "aviso-gps") + '" style="margin:0 0 10px;">'
+      + (s.preFicha.n ? "Já veio da ficha do trecho " + esc(s.preFicha.tr) + " (o que está gravado neste km). Confira e escolha a gravidade."
+        : "Na ficha do trecho " + esc(s.preFicha.tr) + " não tem problema gravado neste km — marque o que você viu.") + "</div>"
+    : "") + htmlItensFicha(s);
   const botoesGravidade = GRAVIDADES.map((g) =>
     '<button class="btn-gravidade' + (s.gravidade === g.id ? " ativo" : "") + '" data-gravidade="' + g.id + '" style="--cor:' + g.cor + '">'
     + "<b>" + esc(g.rotulo) + "</b>" + (g.dica ? "<small>" + esc(g.dica) + "</small>" : "") + "</button>"
@@ -268,6 +273,8 @@ function limparKm() {
 function aplicarKm(achado) {
   const s = alertaState;
   Object.assign(s, { sre: achado.sre, km: achado.km, extensaoKm: achado.extensaoKm, distancia: achado.distancia, situacao: achado.situacao, fichaDoSre: achado.ficha });
+  // veio da aba Ficha: vale o tipo da ficha que está sendo preenchida (não apaga o que veio de lá)
+  if (s.preFicha) { s.tipoFicha = s.preFicha.f; return; }
   // o tipo de ficha segue o S.R.E.; se mudou, as marcações da outra ficha não valem
   if (achado.ficha && achado.ficha !== s.tipoFicha) {
     s.tipoFicha = achado.ficha;
@@ -288,7 +295,7 @@ function htmlItensFicha(s) {
       '<button class="seg' + (k === tipo ? " ativo" : "") + '" data-tipo-ficha="' + k + '">' + esc(FICHAS[k].nome) + "</button>").join("")
     + "</div>"
     + '<div class="rotulo-mini">' + (!s.situacao ? "Escolha o tipo de ficha. "
-      : s.fichaDoSre && s.fichaDoSre !== tipo ? "<b>Atenção:</b> o S.R.E. é " + esc(s.situacao) + " (ficha " + esc(FICHAS[s.fichaDoSre].nome.toLowerCase()) + "), você trocou à mão. "
+      : s.fichaDoSre && s.fichaDoSre !== tipo && !s.preFicha ?"<b>Atenção:</b> o S.R.E. é " + esc(s.situacao) + " (ficha " + esc(FICHAS[s.fichaDoSre].nome.toLowerCase()) + "), você trocou à mão. "
       : "Ficha " + esc(ficha.nome.toLowerCase()) + " pela situação do S.R.E. (" + esc(s.situacao) + "). ")
     + "Marque só o que está ruim — no máximo uma opção por grupo, igual à ficha.</div>";
   const grupos = ficha.grupos.map((g) =>
