@@ -243,6 +243,9 @@ textarea.input{ height:auto; padding:10px 14px; resize:vertical; }
 .legenda-mapa span{ display:flex; align-items:center; gap:7px; }
 .legenda-mapa i{ width:11px; height:11px; border-radius:50%; border:2px solid #fff; box-shadow:0 0 0 1px rgba(0,0,0,.2); }
 .legenda-mapa-dica{ color:#64748B; font-size:11px; }
+.marco-km{ display:inline-block; transform:translate(-50%, -50%); padding:0 4px; border-radius:6px; background:#fff; border:1px solid #1E3A72;
+  color:#1E3A72; font:700 10px/14px system-ui, sans-serif; white-space:nowrap; box-shadow:0 1px 2px rgba(0,0,0,.25); }
+.marco-km-zero{ background:#1E3A72; color:#fff; }
 
 /* ---------- Celular ---------- */
 @media (max-width: 700px){
@@ -258,4 +261,6 @@ textarea.input{ height:auto; padding:10px 14px; resize:vertical; }
   .painel-filtros select{ flex:1 1 calc(50% - 4px); min-width:0; }
   .painel-corpo{ flex-direction:column; height:auto; }
   .painel-mapa{ flex:none; height:300px; }
+  .legenda-mapa{ padding:5px 8px; font-size:11px; gap:2px; }
+  .legenda-mapa-dica{ display:none !important; }
   .painel-lista{ flex:none; border-left:none; border-top:1px solid var(--border); overflow:visible; }}

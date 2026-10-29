@@ -98,7 +98,7 @@ function renderPainel() {
     + '<option value="outro"' + (s.filtroCategoria === "outro" ? " selected" : "") + ">Fora da ficha</option></select>"
     + '<input class="input input-mini" id="f-sre" placeholder="S.R.E. (ex.: 201ETO0270)" value="' + esc(s.filtroSre) + '" style="width:190px;">'
     + '<select class="input input-mini" id="f-ordem"><option value="triagem"' + (s.ordem === "triagem" ? " selected" : "") + '>Ordem: urgentes primeiro</option><option value="sre"' + (s.ordem === "sre" ? " selected" : "") + ">Ordem: S.R.E. e km (ficha)</option></select>"
-    + '<button class="btn btn-primary btn-mini" id="btn-ficha" title="Uma linha por S.R.E. e km, com o que marcar em cada grupo da ficha (usa os filtros da tela)">Linhas da ficha (CSV)</button>'
+    + '<button class="btn btn-primary btn-mini" id="btn-ficha" title="Todos os km (de 1 em 1) dos S.R.E. dos trechos com alerta, com o que marcar em cada grupo da ficha (usa os filtros da tela)">Linhas da ficha (CSV)</button>'
     + '<button class="btn btn-outline btn-mini" id="btn-csv">Alertas (CSV)</button>'
     + '<button class="btn btn-outline btn-mini" id="btn-recarregar-painel"' + (s.carregando ? " disabled" : "") + ">" + (s.carregando ? "Carregando…" : "Recarregar") + "</button>"
     + "</div></div>"
@@ -123,6 +123,27 @@ function renderPainel() {
   if (s.aberto) ligarFicha(m);
 
   desenharMapa(lista);
+}
+
+const ZOOM_MARCOS_KM = 12; // a partir daqui 1 km já tem uns 25 px na tela
+
+// Posição de cada km inteiro de cada S.R.E. (calculada uma vez só): anda pela
+// linha usando os metros acumulados de SRE_KM, os mesmos do cálculo do km do alerta.
+let _marcosKm = null;
+function marcosKm() {
+  if (_marcosKm) return _marcosKm;
+  _marcosKm = [];
+  for (const s of SRE_KM) {
+    let i = 1;
+    for (let km = 0; km * 1000 <= s.c; km++) {
+      const alvo = km * 1000;
+      while (i < s.p.length - 1 && s.p[i][2] < alvo) i++;
+      const a = s.p[i - 1], b = s.p[i];
+      const t = b[2] === a[2] ? 0 : Math.max(0, Math.min(1, (alvo - a[2]) / (b[2] - a[2])));
+      _marcosKm.push({ sre: s.s, km, ll: [a[1] + t * (b[1] - a[1]), a[0] + t * (b[0] - a[0])] });
+    }
+  }
+  return _marcosKm;
 }
 
 // Pra preencher a ficha: agrupa por S.R.E. e segue o km do INÍCIO pro FIM
@@ -170,10 +191,31 @@ function desenharMapa(lista) {
     div.innerHTML = '<span><i style="background:' + COR_MAPA.aberto + '"></i>Em alerta</span>'
       + '<span><i style="background:' + COR_MAPA.resolvido + '"></i>Resolvido</span>'
       + '<span><i style="background:' + COR_MAPA.descartado + '"></i>Descartado</span>'
-      + '<span class="legenda-mapa-dica">ponto maior = urgente</span>';
+      + '<span class="legenda-mapa-dica">ponto maior = urgente</span>'
+      + '<span class="legenda-mapa-dica">aproxime pra ver os km de cada S.R.E.</span>';
     return div;
   };
   legenda.addTo(mapaPainel);
+
+  // Marcos de km de cada S.R.E. (0 = INÍCIO, igual à ficha), só de perto —
+  // de longe seriam milhares de etiquetas uma em cima da outra. Ficam num
+  // painel por baixo dos pontos de alerta, pra nunca esconder um vermelho.
+  mapaPainel.createPane("marcos").style.zIndex = 390;
+  const camadaKm = L.layerGroup().addTo(mapaPainel);
+  const desenharMarcos = () => {
+    camadaKm.clearLayers();
+    if (mapaPainel.getZoom() < ZOOM_MARCOS_KM) return;
+    const area = mapaPainel.getBounds().pad(0.2);
+    for (const mk of marcosKm()) {
+      if (!area.contains(mk.ll)) continue;
+      L.marker(mk.ll, {
+        pane: "marcos", keyboard: false,
+        icon: L.divIcon({ className: "", iconSize: null, html: '<span class="marco-km' + (mk.km === 0 ? " marco-km-zero" : "") + '">' + (mk.km === 0 ? "0 · " + mk.sre : mk.km) + "</span>" })
+      }).bindTooltip("S.R.E. " + mk.sre + " · km " + mk.km + (mk.km === 0 ? " (INÍCIO)" : "")).addTo(camadaKm);
+    }
+  };
+  mapaPainel.on("zoomend moveend", desenharMarcos);
+
   if (pontos.length) mapaPainel.fitBounds(pontos, { padding: [30, 30], maxZoom: 13 });
   else mapaPainel.setView([-8.5, -48.3], 6); // Tocantins
 }
@@ -315,37 +357,56 @@ function baixarCsv(lista) {
   salvarCsv("alertas", cab, linhas);
 }
 
-// No formato da Ficha de Inspeção: uma linha por S.R.E. + km (faixa de 1 km),
-// com a coluna marcada em cada grupo. Vários alertas no mesmo km: vale o mais
-// grave de cada grupo (a ficha pede o PREDOMINANTE) e as observações juntam.
-// Só entram os km COM alerta — o resto da ficha continua sendo preenchido como hoje.
+// No formato da Ficha de Inspeção: TODAS as linhas (de 1 em 1 km a partir do
+// INÍCIO de cada S.R.E.) dos trechos que têm alerta, na ordem da própria ficha —
+// MODELO_FICHA (js/modelo-ficha.js) vem das fichas reais mais recentes, então
+// dá pra copiar a coluna inteira pra planilha. Os km com alerta vêm com a coluna
+// marcada em cada grupo; os outros ficam em branco (o técnico preenche como
+// hoje). Vários alertas no mesmo km: vale o mais grave de cada grupo (a ficha
+// pede o PREDOMINANTE) e as observações juntam. Usa os filtros da tela.
+
 function baixarLinhasFicha(lista) {
-  const linhas = new Map();
+  const porLinha = new Map(); // "região|tipo|trecho|S.R.E.|início" -> o que marcar
+  const trechosUsados = new Set();
+  let foraDoModelo = 0;
   for (const a of lista) {
-    const f = faixaDoAlerta(a);
-    if (!f) continue;
-    const tipo = a.tipo_ficha || "pav";
-    const chave = tipo + "|" + a.sre + "|" + f.ini;
-    if (!linhas.has(chave)) linhas.set(chave, { tipo, a, f, itens: {}, obs: [], n: 0 });
-    const l = linhas.get(chave);
-    l.n++;
-    for (const g of FICHAS[tipo].grupos) {
+    if (!a.sre || a.km_sre == null) continue;
+    const l = linhaDaFicha(a);
+    if (!l) { foraDoModelo++; continue; }
+    trechosUsados.add(l.bloco.r + "|" + l.bloco.f + "|" + l.trecho.tr);
+    const chave = l.bloco.r + "|" + l.bloco.f + "|" + l.trecho.tr + "|" + l.sre + "|" + l.marcos[l.i];
+    if (!porLinha.has(chave)) porLinha.set(chave, { itens: {}, obs: [], n: 0 });
+    const reg = porLinha.get(chave);
+    reg.n++;
+    for (const g of FICHAS[l.bloco.f].grupos) {
       const novo = (a.itens || {})[g.id];
       if (!novo) continue;
       const pos = (c) => g.opcoes.findIndex((o) => o.c === c);
-      if (!l.itens[g.id] || pos(novo) > pos(l.itens[g.id])) l.itens[g.id] = novo;
+      if (!reg.itens[g.id] || pos(novo) > pos(reg.itens[g.id])) reg.itens[g.id] = novo;
     }
     const obs = [(a.itens || {}).outro, a.observacao].filter(Boolean).join(": ");
-    if (obs) l.obs.push(obs);
+    if (obs) reg.obs.push(obs);
   }
-  const ordenadas = [...linhas.values()].sort((x, y) =>
-    x.tipo.localeCompare(y.tipo) || parseInt(x.a.regiao.slice(1), 10) - parseInt(y.a.regiao.slice(1), 10)
-    || x.a.sre.localeCompare(y.a.sre) || x.f.ini - y.f.ini);
-  const cab = ["FICHA", "REGIÃO", "TRECHO", "S.R.E.", "INÍCIO (KM)", "FIM (KM)"]
+  const cab = ["FICHA", "REGIÃO", "Nº TRECHO", "TRECHO", "S.R.E.", "INÍCIO (KM)", "FIM (KM)", "EXT. (KM)"]
     .concat(TODOS_GRUPOS.map((g) => g.nome.toUpperCase()), ["OBSERVAÇÕES", "Nº DE ALERTAS"]);
-  salvarCsv("linhas_da_ficha", cab, ordenadas.map((l) =>
-    [FICHAS[l.tipo].nome, rotuloRegiao(l.a.regiao), l.a.trecho, l.a.sre, l.f.ini, numBR(l.f.fim)]
-      .concat(TODOS_GRUPOS.map((g) => l.itens[g.id] || ""), [l.obs.join(" | "), l.n])));
+  const linhas = [];
+  for (const bloco of MODELO_FICHA) {
+    for (const trecho of bloco.trechos) {
+      if (!trechosUsados.has(bloco.r + "|" + bloco.f + "|" + trecho.tr)) continue;
+      for (const [sre, marcos] of trecho.sres) {
+        for (let i = 0; i < marcos.length - 1; i++) {
+          const reg = porLinha.get(bloco.r + "|" + bloco.f + "|" + trecho.tr + "|" + sre + "|" + marcos[i]);
+          linhas.push([FICHAS[bloco.f].nome, rotuloRegiao(bloco.r), trecho.tr, trecho.tn, sre, numBR(marcos[i]), numBR(marcos[i + 1]), numBR(marcos[i + 1] - marcos[i])]
+            .concat(TODOS_GRUPOS.map((g) => (reg && reg.itens[g.id]) || ""), [reg ? reg.obs.join(" | ") : "", reg ? reg.n : ""]));
+        }
+      }
+    }
+  }
+  if (foraDoModelo) {
+    alert(foraDoModelo + (foraDoModelo === 1 ? " alerta ficou" : " alertas ficaram") + " de fora: o S.R.E./km não aparece na ficha usada como modelo ("
+      + MODELO_FICHA[0].comp + "). Eles continuam no CSV \"Alertas\".");
+  }
+  salvarCsv("linhas_da_ficha", cab, linhas);
 }
 
 // Número de alertas "novo" no botão da aba — é o aviso pro escritório.

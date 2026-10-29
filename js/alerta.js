@@ -79,7 +79,7 @@ function renderAlerta() {
       blocoLocal = '<div class="cartao-local">'
         + '<div class="cartao-local-texto"><div class="rotulo-mini">Local detectado pelo GPS</div>'
         + "<b>" + esc(rotuloRegiao(s.regiao)) + "</b> › " + esc(s.trecho)
-        + (s.sre ? '<div class="km-sre">S.R.E. <b>' + esc(s.sre) + "</b> · " + esc(textoKm(s.km, s.extensaoKm)) + "</div>" : "")
+        + (s.sre ? '<div class="km-sre">S.R.E. <b>' + esc(s.sre) + "</b> · " + esc(textoKmAlerta({ sre: s.sre, km_sre: s.km, regiao: s.regiao, tipo_ficha: s.tipoFicha })) + "</div>" : "")
         + '<div class="rotulo-mini">' + (s.gps ? s.gps.lat.toFixed(5) + ", " + s.gps.lng.toFixed(5) : "") + (s.distancia != null ? " · " + Math.round(s.distancia) + " m do eixo" : "") + "</div></div>"
         + '<button class="btn btn-ghost btn-mini" id="btn-corrigir-local">Corrigir</button></div>';
     }

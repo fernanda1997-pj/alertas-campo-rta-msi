@@ -91,12 +91,46 @@ function textoKm(km, extensaoKm) {
   return "km " + km.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " · faixa " + n(f.ini) + "–" + n(f.fim) + " da ficha";
 }
 
+// Linha da Ficha de Inspeção (js/modelo-ficha.js) onde cai o km do alerta: {bloco, trecho, sre, marcos, i} ou null
+function linhaDaFicha(a) {
+  const km = Number(a.km_sre);
+  let achou = null;
+  for (const bloco of MODELO_FICHA) {
+    if (a.regiao && bloco.r !== a.regiao) continue;
+    for (const trecho of bloco.trechos) {
+      for (const [sre, marcos] of trecho.sres) {
+        if (sre !== a.sre || km < marcos[0] - 0.05 || km > marcos[marcos.length - 1] + 0.5) continue;
+        let i = marcos.length - 2;
+        while (i > 0 && km < marcos[i]) i--;
+        const cand = { bloco, trecho, sre, marcos, i };
+        if (bloco.f === a.tipo_ficha) return cand; // a ficha do tipo marcado no alerta ganha
+        achou = achou || cand;
+      }
+    }
+  }
+  return achou;
+}
+
+// "km 3,42 · faixa 3–4 da ficha": a faixa vem da linha da ficha real quando o
+// S.R.E. está no modelo (a última linha termina na extensão da ficha, ex. 12,57),
+// senão da conta de 1 em 1 km pelo comprimento do traçado.
+function textoKmAlerta(a) {
+  const km = a.km_sre == null ? null : Number(a.km_sre);
+  if (km == null || !a.sre) return "";
+  const l = typeof MODELO_FICHA !== "undefined" ? linhaDaFicha(a) : null;
+  if (!l) {
+    const info = SRE_KM.find((x) => x.s === a.sre);
+    return textoKm(km, info ? info.c / 1000 : null);
+  }
+  const n = (v) => v.toLocaleString("pt-BR", { maximumFractionDigits: 3 });
+  return "km " + km.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " · faixa " + n(l.marcos[l.i]) + "–" + n(l.marcos[l.i + 1]) + " da ficha";
+}
+
 // Texto "S.R.E. X · km 3,42 · faixa 3–4 da ficha" de um alerta já gravado
 function textoSreKmDoAlerta(a) {
   if (!a.sre) return "";
-  const info = SRE_KM.find((x) => x.s === a.sre);
-  const km = a.km_sre == null ? null : Number(a.km_sre);
-  return "S.R.E. " + a.sre + (km == null ? "" : " · " + textoKm(km, info ? info.c / 1000 : null));
+  const t = textoKmAlerta(a);
+  return "S.R.E. " + a.sre + (t ? " · " + t : "");
 }
 
 // Distância em metros entre dois pontos (pra achar alerta já aberto perto)
