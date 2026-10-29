@@ -3,13 +3,27 @@
 // "Failed to fetch" — é isso que pareceErroDeRede (js/fila.js) reconhece pra
 // mandar o alerta pra fila do celular.
 
+// Sinal fraco: o fetch não falha, fica pendurado. Passou do prazo, vira erro
+// "timeout" (pareceErroDeRede) e o alerta/ficha vai pra fila do celular. Reenviar
+// é seguro: foto e alerta com o mesmo id não duplicam no SharePoint (jaExistia).
+const PRAZO_API_MS = 90000;
+
 async function chamarApi(metodo, url, corpo) {
-  const resp = await fetch(url, {
-    method: metodo,
-    headers: corpo ? { "Content-Type": "application/json" } : undefined,
-    body: corpo ? JSON.stringify(corpo) : undefined,
-    cache: "no-store"
-  });
+  const controle = typeof AbortController !== "undefined" ? new AbortController() : null;
+  const timer = controle ? setTimeout(() => controle.abort(), PRAZO_API_MS) : null;
+  let resp;
+  try {
+    resp = await fetch(url, {
+      method: metodo,
+      headers: corpo ? { "Content-Type": "application/json" } : undefined,
+      body: corpo ? JSON.stringify(corpo) : undefined,
+      cache: "no-store",
+      signal: controle ? controle.signal : undefined
+    });
+  } catch (erro) {
+    if (erro && erro.name === "AbortError") throw new Error("timeout: sinal fraco demais");
+    throw erro;
+  } finally { clearTimeout(timer); }
   const json = await resp.json().catch(() => ({}));
   if (!resp.ok) {
     const erro = new Error(json.erro || "HTTP " + resp.status);

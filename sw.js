@@ -6,7 +6,7 @@
 // - api/ (alertas e fotos no SharePoint) e qualquer outra origem (tiles do
 //   mapa): nunca interceptar. Já houve bug no Fotos de Campo por guardar
 //   resposta de dados em cache — a lista nunca mais atualizava.
-const CACHE_ESTATICO = "alertas-campo-static-v11";
+const CACHE_ESTATICO = "alertas-campo-static-v12";
 const CDN_HOSTNAME = "cdn.jsdelivr.net";
 
 const ARQUIVOS_APP = [
@@ -43,6 +43,27 @@ const ARQUIVOS_CDN = [
   "https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"
 ];
 
+// Sinal fraco na rodovia (uma barrinha): o fetch não falha, só demora — e o app
+// ficava carregando. Passou ESPERA_REDE_MS, usa a cópia do celular; a rede segue
+// por trás e atualiza o cache pra próxima vez. Sem cópia, espera a rede mesmo.
+const ESPERA_REDE_MS = 4000;
+
+function redeComPrazo(req) {
+  const doCache = () => caches.match(req, { ignoreSearch: true });
+  const daRede = fetch(req).then((resposta) => {
+    if (resposta.ok) {
+      const copia = resposta.clone();
+      caches.open(CACHE_ESTATICO).then((cache) => cache.put(req, copia));
+    }
+    return resposta;
+  });
+  daRede.catch(() => {}); // se o prazo já respondeu, a falha da rede não importa
+  const prazo = new Promise((resolve) => setTimeout(resolve, ESPERA_REDE_MS))
+    .then(doCache).then((copia) => copia || daRede);
+  return Promise.race([daRede, prazo])
+    .catch(() => doCache().then((copia) => copia || caches.match("index.html")));
+}
+
 self.addEventListener("install", (evento) => {
   self.skipWaiting();
   evento.waitUntil(
@@ -70,15 +91,7 @@ self.addEventListener("fetch", (evento) => {
   if (url.origin === self.location.origin && url.pathname.startsWith("/api/")) return; // dados: sempre direto na rede
 
   if (url.origin === self.location.origin) {
-    evento.respondWith(
-      fetch(req)
-        .then((resposta) => {
-          const copia = resposta.clone();
-          caches.open(CACHE_ESTATICO).then((cache) => cache.put(req, copia));
-          return resposta;
-        })
-        .catch(() => caches.match(req, { ignoreSearch: true }).then((match) => match || caches.match("index.html")))
-    );
+    evento.respondWith(redeComPrazo(req));
     return;
   }
 

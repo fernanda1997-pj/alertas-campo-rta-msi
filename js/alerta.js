@@ -120,11 +120,20 @@ function renderAlerta() {
   if (observacaoObrigatoria(s) && s.observacao.trim().length < 5) falta.push("observação");
   const podeEnviar = !falta.length && !s.enviando && !s.localizando;
 
+  // veio da aba Ficha com problema gravado: tela enxuta — foto, gravidade e observação;
+  // o "o que você viu" vira uma linha de resumo (com "Mudar" pra abrir os grupos)
+  const enxuta = s.preFicha && s.preFicha.n && !s.preFicha.editar;
+  const passoOQue = enxuta
+    ? '<div class="cartao-local"><div class="cartao-local-texto"><div class="rotulo-mini">Da ficha do trecho ' + esc(s.preFicha.tr) + " (gravado neste km)</div><b>"
+      + esc(resumoItens(s.itens)) + '</b></div><button class="btn btn-ghost btn-mini" id="btn-mudar-itens">Mudar</button></div>'
+    : '<div class="passo"><div class="passo-titulo"><span class="passo-num">2</span>O que você viu neste km?</div>' + blocoFicha + "</div>";
+  const n = enxuta ? [0, 2, 3] : [0, 3, 4]; // numeração dos passos gravidade/observação
+
   m.innerHTML = '<div class="alerta-tela">' + faixaConexao + faixaFila + faixaFilaMsg + blocoNome
-    + '<div class="passo"><div class="passo-titulo"><span class="passo-num">1</span>Foto</div>' + blocoFotos + avisosFoto + blocoLocal + "</div>"
-    + '<div class="passo"><div class="passo-titulo"><span class="passo-num">2</span>O que você viu neste km?</div>' + blocoFicha + "</div>"
-    + '<div class="passo"><div class="passo-titulo"><span class="passo-num">3</span>Gravidade</div><div class="linha-gravidade">' + botoesGravidade + "</div></div>"
-    + '<div class="passo"><div class="passo-titulo"><span class="passo-num">4</span>Observação'
+    + '<div class="passo"><div class="passo-titulo"><span class="passo-num">1</span>Foto</div>' + blocoFotos + avisosFoto + blocoLocal + (enxuta ? passoOQue : "") + "</div>"
+    + (enxuta ? "" : passoOQue)
+    + '<div class="passo"><div class="passo-titulo"><span class="passo-num">' + n[1] + '</span>Gravidade</div><div class="linha-gravidade">' + botoesGravidade + "</div></div>"
+    + '<div class="passo"><div class="passo-titulo"><span class="passo-num">' + n[2] + "</span>Observação"
     + (observacaoObrigatoria(s) ? "" : ' <span class="rotulo-mini">(opcional · vai nas OBSERVAÇÕES da ficha)</span>') + "</div>"
     + '<textarea class="input" id="campo-observacao" rows="3" maxlength="800" placeholder="Ex.: buraco grande no meio da pista, sentido Palmas, carro desviando pela contramão">' + esc(s.observacao) + "</textarea></div>"
     + (s.msgErro ? '<div class="banner-err">' + esc(s.msgErro) + "</div>" : "")
@@ -155,6 +164,7 @@ function ligarEventosAlerta(m) {
     if (!s.fotos.length) { s.capturadoEm = null; limparRascunhoSemFalhar(); }
     renderAlerta();
   }));
+  const bMudar = m.querySelector("#btn-mudar-itens"); if (bMudar) bMudar.addEventListener("click", () => { s.preFicha.editar = true; renderAlerta(); });
   const bCorrigir = m.querySelector("#btn-corrigir-local"); if (bCorrigir) bCorrigir.addEventListener("click", () => { s.manual = true; renderAlerta(); });
   const bGps = m.querySelector("#btn-tentar-gps"); if (bGps) bGps.addEventListener("click", () => lerGps());
   const selR = m.querySelector("#sel-regiao"); if (selR) selR.addEventListener("change", (e) => { s.regiao = e.target.value; s.trecho = ""; limparKm(); renderAlerta(); });
