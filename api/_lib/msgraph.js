@@ -11,11 +11,14 @@
 const PASTA_APP = "Alertas-Campo";
 
 function obterConfig() {
-  const tenantId = process.env.MS_TENANT_ID;
-  const clientId = process.env.MS_CLIENT_ID;
-  const clientSecret = process.env.MS_CLIENT_SECRET;
-  const siteId = process.env.MS_SITE_ID;
-  const pastaBase = process.env.MS_PASTA_BASE || "";
+  // trim: valor colado no painel do Vercel às vezes vem com espaço/quebra de
+  // linha invisível no fim, e a Microsoft recusa a senha sem dizer o porquê
+  const env = (nome) => String(process.env[nome] || "").trim();
+  const tenantId = env("MS_TENANT_ID");
+  const clientId = env("MS_CLIENT_ID");
+  const clientSecret = env("MS_CLIENT_SECRET");
+  const siteId = env("MS_SITE_ID");
+  const pastaBase = env("MS_PASTA_BASE");
   const configurado = !!(tenantId && clientId && clientSecret && siteId);
   return { tenantId, clientId, clientSecret, siteId, pastaBase, configurado };
 }
