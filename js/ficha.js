@@ -34,6 +34,7 @@ let fichaState = {
   auto: {},            // condição atual de cada grupo pro "preencher ao passar"
   autoLigado: true,
   editando: null,      // chave da linha aberta no editor
+  escolhendoAuto: null, // grupo com a escolha do "preencher ao passar" aberta
   sinc: { enviando: false, ultimo: null, erro: "" },
   alertas: [],         // alertas abertos (marcação no km)
   procurando: false,   // lendo o GPS pra achar o trecho
@@ -63,6 +64,19 @@ function trechoFicha(s) { const b = blocoFicha(s.r, s.f); return b ? b.trechos.f
 function idFichaLocal(s) { return s.comp + "|" + s.r + "|" + s.f + "|" + s.tr; }
 function chaveLinha(sre, ini) { return sre + "|" + ini; }
 function rotuloCurto(r) { return String(r).replace(/\s*\(.*$/, ""); } // "REG. (ATÉ 10 IRR./KM)" -> "REG."
+
+// Nome por extenso de cada coluna (a sigla da ficha confunde quem está no campo).
+// A 1ª coluna (a boa) não está em FICHAS — lá só entram problemas —, as outras
+// vêm de FICHAS na mesma ordem das colunas da ficha.
+const BOA_EXTENSO = { vegetacao: "Adequada", drenagem: "Limpos", drenagem_superficial: "Limpa" };
+const GRUPO_CURTO = { pavimento: "Pavimento", vegetacao: "Vegetação", drenagem: "Drenagem", sinalizacao_horizontal: "Sinal. horiz.",
+  sinalizacao_vertical: "Sinal. vertical", plataforma: "Plataforma", drenagem_superficial: "Drenagem" };
+function opcaoExtenso(f, grupoId, k, rotulo) {
+  if (k === 0) return { t: BOA_EXTENSO[grupoId] || "Bom", d: "" };
+  const g = FICHAS[f] && FICHAS[f].grupos.find((x) => x.id === grupoId);
+  const o = g && g.opcoes[k - 1];
+  return o ? { t: o.t, d: o.d || "" } : { t: rotuloCurto(rotulo || ""), d: "" };
+}
 
 // Todas as linhas do trecho na ordem da ficha: [{sre, ini, fim, i, chave}]
 function linhasDoTrecho(trecho) {
@@ -96,7 +110,7 @@ function juntarMarcacoes(docs) {
 // ---------- estado local ----------
 async function abrirFichaInspecao(r, f, tr, comp) {
   pararAcompanhar();
-  Object.assign(fichaState, { r, f, tr, comp: comp || fichaState.comp, minhas: {}, outras: [], linhaAtual: null, ultimaLinhaAuto: null, editando: null, auto: {}, candidato: null, avisoTroca: null });
+  Object.assign(fichaState, { r, f, tr, comp: comp || fichaState.comp, minhas: {}, outras: [], linhaAtual: null, ultimaLinhaAuto: null, editando: null, escolhendoAuto: null, auto: {}, candidato: null, avisoTroca: null });
   gravarLocal("alertas_ficha_ultima", JSON.stringify({ r, f, tr }));
   try {
     const doc = await lerFichaLocal(idFichaLocal(fichaState));
@@ -331,10 +345,18 @@ function renderFicha() {
   const outros = s.outras.filter((d) => d.dispositivo !== DISPOSITIVO && d.nome)
     .map((d) => esc(d.nome) + " (" + tempoDesde(d.atualizado) + ")").join(", ");
 
-  const autoHtml = bloco.grupos.map((g) =>
-    '<div class="auto-grupo"><div class="grupo-ficha-nome">' + esc(g.nome) + '</div><div class="chips-opcoes">'
-    + g.rotulos.map((r) => '<button class="chip-opcao chip-mini' + (s.auto[g.id] === r ? " ativo" : "") + '" data-auto-grupo="' + g.id + '" data-auto-rotulo="' + esc(r) + '" title="' + esc(r) + '">' + esc(rotuloCurto(r)) + "</button>").join("")
-    + "</div></div>").join("");
+  // barra fixa no rodapé: um botão por grupo com a condição que está valendo;
+  // tocar abre a escolha (htmlEscolherAuto). A lista da ficha fica sempre à vista.
+  const algumAuto = Object.values(s.auto).some(Boolean);
+  const barraAuto = '<div class="auto-barra"><div class="auto-barra-topo"><b>Preencher ao passar</b><span class="rotulo-mini">'
+    + (algumAuto ? "" : "toque num grupo") + "</span>"
+    + '<label class="chave-auto"><input type="checkbox" id="chk-auto"' + (s.autoLigado ? " checked" : "") + "> ligado</label></div>"
+    + '<div class="auto-grupos">' + bloco.grupos.map((g) => {
+      const k = s.auto[g.id] ? g.rotulos.indexOf(s.auto[g.id]) : -1;
+      const ex = k >= 0 ? opcaoExtenso(s.f, g.id, k, s.auto[g.id]) : null;
+      return '<button class="auto-btn' + (k < 0 ? " vazia" : k === 0 ? " boa" : " ruim") + '" data-auto-abrir="' + g.id + '">'
+        + "<span>" + esc(GRUPO_CURTO[g.id] || g.nome) + "</span><b>" + (ex ? esc(ex.t) : "escolher") + "</b></button>";
+    }).join("") + "</div></div>";
 
   let linhasHtml = "", sreAnterior = "";
   for (const l of linhas) {
@@ -350,7 +372,7 @@ function renderFicha() {
       + bloco.grupos.map((g) => {
         const mk = marcas[g.id];
         const k = mk && mk.c ? g.rotulos.indexOf(mk.c) : -1;
-        return '<span class="ficha-cel' + (k < 0 ? " vazia" : k === 0 ? " boa" : " ruim") + '" title="' + esc(g.nome + (mk && mk.c ? ": " + mk.c + " · " + (mk.por || "?") : "")) + '">' + (k < 0 ? "·" : esc(rotuloCurto(mk.c))) + "</span>";
+        return '<span class="ficha-cel' + (k < 0 ? " vazia" : k === 0 ? " boa" : " ruim") + '" title="' + esc(g.nome + (k >= 0 ? ": " + opcaoExtenso(s.f, g.id, k, mk.c).t + " · " + (mk.por || "?") : "")) + '">' + (k < 0 ? "·" : esc(rotuloCurto(mk.c))) + "</span>";
       }).join("")
       + (nAlertas ? '<span class="ficha-alerta" title="' + nAlertas + ' alerta(s) aberto(s) neste km">⚠' + nAlertas + "</span>" : "")
       + "</button>";
@@ -361,24 +383,29 @@ function renderFicha() {
     + "<b>Trecho " + esc(s.tr) + "</b> — " + esc(trecho.tn) + "</div>"
     + '<button class="btn btn-ghost btn-mini" id="btn-trocar-ficha">Trocar</button></div>'
     + '<div id="ficha-gps"></div>'
-    + '<details class="ficha-auto"' + (Object.values(s.auto).some(Boolean) ? "" : " open") + "><summary><b>Preencher ao passar</b> "
-    + '<label class="chave-auto" onclick="event.stopPropagation()"><input type="checkbox" id="chk-auto"' + (s.autoLigado ? " checked" : "") + "> ligado</label></summary>"
-    + '<div class="rotulo-mini">Toque na condição atual de cada grupo. Com o GPS ligado, toda linha por onde você passar é marcada assim — mudou a pista, toque na nova condição.</div>'
-    + autoHtml + "</details>"
     + '<div class="ficha-progresso"><div class="barra"><i style="width:' + pct + '%"></i></div><span>' + completas + " de " + linhas.length + " linhas completas</span></div>"
     + '<div class="rotulo-mini" id="ficha-status"></div>'
     + (outros ? '<div class="rotulo-mini">Também preenchendo este trecho: ' + outros + "</div>" : "")
     + '<div class="ficha-cab-grupos"><span class="ficha-km">km</span>' + bloco.grupos.map((g) => '<span class="ficha-cel" title="' + esc(g.nome) + '">' + esc(g.nome.replace(/^(Condição d[oa] |Elementos de |Sinalização )/, "").slice(0, 6)) + "</span>").join("") + "</div>"
     + '<div class="ficha-linhas">' + linhasHtml + "</div>"
     + '<button class="btn btn-outline btn-grande" id="btn-baixar-ficha">Baixar planilha da ' + esc(rotuloRegiao(s.r)) + " (.xlsx)</button>"
+    + barraAuto
     + "</div>"
-    + (s.editando ? htmlEditorLinha(bloco, linhas, juntas) : "");
+    + (s.editando ? htmlEditorLinha(bloco, linhas, juntas) : "")
+    + (s.escolhendoAuto ? htmlEscolherAuto(bloco) : "");
 
   m.querySelector("#btn-trocar-ficha").addEventListener("click", fecharFicha);
   m.querySelector("#chk-auto").addEventListener("change", (e) => { s.autoLigado = e.target.checked; s.ultimaLinhaAuto = null; });
+  m.querySelectorAll("[data-auto-abrir]").forEach((b) => b.addEventListener("click", () => { s.escolhendoAuto = b.dataset.autoAbrir; renderFicha(); }));
+  if (s.escolhendoAuto) {
+    const fechar = () => { s.escolhendoAuto = null; renderFicha(); };
+    m.querySelector("#auto-fundo").addEventListener("click", fechar);
+    m.querySelector("#btn-fechar-auto").addEventListener("click", fechar);
+  }
   m.querySelectorAll("[data-auto-grupo]").forEach((b) => b.addEventListener("click", () => {
     const g = b.dataset.autoGrupo, r = b.dataset.autoRotulo;
-    s.auto[g] = s.auto[g] === r ? "" : r;
+    s.auto[g] = r;
+    s.escolhendoAuto = null;
     // trocou a condição dentro de uma linha: vale pra ela se ainda está na
     // primeira metade (ou se a linha não tinha nada); passou da metade, a
     // ficha pede o PREDOMINANTE — a linha fica como estava e a nova começa na próxima
@@ -395,6 +422,9 @@ function renderFicha() {
   m.querySelectorAll("[data-linha]").forEach((b) => b.addEventListener("click", () => { s.editando = b.dataset.linha; renderFicha(); }));
   m.querySelector("#btn-baixar-ficha").addEventListener("click", () => baixarFichaXlsx(s.r, s.f, s.comp));
   if (s.editando) ligarEditorLinha(m, bloco, linhas);
+  // a barra é fixa no rodapé: deixa o mesmo espaço no fim da lista pra última linha não ficar por baixo
+  const barra = m.querySelector(".auto-barra");
+  if (barra) m.querySelector(".ficha-tela").style.paddingBottom = (barra.offsetHeight + 16) + "px";
   atualizarGpsNaTela();
   atualizarStatusFicha();
 }
@@ -435,6 +465,23 @@ function atualizarStatusFicha() {
     : "Salvo no celular.";
 }
 
+// Escolha da condição de um grupo pro "preencher ao passar": botões grandes, por extenso
+function htmlEscolherAuto(bloco) {
+  const s = fichaState;
+  const g = bloco.grupos.find((x) => x.id === s.escolhendoAuto);
+  if (!g) return "";
+  return '<div class="ficha-fundo" id="auto-fundo"></div><div class="auto-folha" role="dialog">'
+    + '<div class="auto-folha-topo"><div><b>' + esc(g.nome) + '</b><div class="rotulo-mini">condição daqui pra frente — vale pra cada linha por onde passar</div></div>'
+    + '<button class="btn btn-ghost" id="btn-fechar-auto" aria-label="Fechar">✕</button></div>'
+    + g.rotulos.map((r, k) => {
+      const ex = opcaoExtenso(s.f, g.id, k, r);
+      return '<button class="auto-opcao' + (k === 0 ? " boa" : " ruim") + (s.auto[g.id] === r ? " ativo" : "") + '" data-auto-grupo="' + g.id + '" data-auto-rotulo="' + esc(r) + '">'
+        + "<b>" + esc(ex.t) + "</b>" + (ex.d ? "<span>" + esc(ex.d) + "</span>" : "") + "<i>" + esc(rotuloCurto(r)) + "</i></button>";
+    }).join("")
+    + (s.auto[g.id] ? '<button class="auto-opcao limpar" data-auto-grupo="' + g.id + '" data-auto-rotulo="">Parar de preencher este grupo</button>' : "")
+    + "</div>";
+}
+
 function htmlEditorLinha(bloco, linhas, juntas) {
   const s = fichaState;
   const l = linhas.find((x) => x.chave === s.editando);
@@ -450,7 +497,8 @@ function htmlEditorLinha(bloco, linhas, juntas) {
       const mk = marcas[g.id];
       return '<div class="grupo-ficha"><div class="grupo-ficha-nome">' + esc(g.nome)
         + (mk && mk.c ? ' <span class="rotulo-mini">· ' + esc(mk.por || "?") + ", " + tempoDesde(mk.em) + "</span>" : "") + '</div><div class="chips-opcoes">'
-        + g.rotulos.map((r) => '<button class="chip-opcao chip-mini' + (mk && mk.c === r ? " ativo" : "") + '" data-ed-grupo="' + g.id + '" data-ed-rotulo="' + esc(r) + '">' + esc(r) + "</button>").join("")
+        + g.rotulos.map((r, k) => '<button class="chip-opcao chip-mini' + (mk && mk.c === r ? " ativo" : "") + '" data-ed-grupo="' + g.id + '" data-ed-rotulo="' + esc(r) + '" title="' + esc(r) + '">'
+          + esc(opcaoExtenso(s.f, g.id, k, r).t) + "</button>").join("")
         + (mk && mk.c ? '<button class="chip-opcao chip-mini chip-limpar" data-ed-grupo="' + g.id + '" data-ed-rotulo="">limpar</button>' : "")
         + "</div></div>";
     }).join("")

@@ -213,11 +213,38 @@ textarea.input{ height:auto; padding:10px 14px; resize:vertical; }
 .ficha-gps-ativo > div{ flex:1 1 auto; min-width:0; }
 .ponto-gps{ flex:0 0 12px; height:12px; border-radius:50%; background:var(--info); box-shadow:0 0 0 0 color-mix(in srgb, var(--info) 60%, transparent); animation:pulsar 1.6s infinite; }
 @keyframes pulsar{ 70%{ box-shadow:0 0 0 10px transparent; } 100%{ box-shadow:0 0 0 0 transparent; } }
-.ficha-auto{ border:1px solid var(--border); border-radius:12px; background:var(--surface); padding:10px 12px; display:flex; flex-direction:column; gap:8px; }
-.ficha-auto summary{ cursor:pointer; font-size:14px; display:flex; align-items:center; gap:10px; }
-.ficha-auto[open] summary{ margin-bottom:6px; }
-.chave-auto{ margin-left:auto; font-size:12.5px; font-weight:600; color:var(--text-muted); display:flex; align-items:center; gap:5px; }
-.auto-grupo{ display:flex; flex-direction:column; gap:5px; margin-top:6px; }
+/* "Preencher ao passar": barra fixa no rodapé (a lista da ficha fica à vista) */
+/* fixed (não sticky): #mount-ficha tem overflow:hidden; o espaço embaixo da lista vem do JS */
+.auto-barra{ position:fixed; left:0; right:0; bottom:0; z-index:50; width:min(640px, 100vw); margin:0 auto; padding:8px 12px calc(10px + env(safe-area-inset-bottom));
+  background:var(--surface); border-top:1px solid var(--border); box-shadow:0 -6px 18px rgba(15,23,42,.14); display:flex; flex-direction:column; gap:6px; }
+.auto-barra-topo{ display:flex; align-items:center; gap:8px; font-size:13px; white-space:nowrap; }
+.auto-barra-topo .rotulo-mini{ flex:1 1 auto; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.chave-auto{ margin-left:auto; flex:0 0 auto; font-size:12.5px; font-weight:600; color:var(--text-muted); display:flex; align-items:center; gap:5px; }
+.auto-grupos{ display:grid; grid-template-columns:repeat(auto-fit, minmax(100px, 1fr)); gap:6px; }
+.auto-btn{ display:flex; flex-direction:column; align-items:flex-start; justify-content:center; gap:1px; min-height:48px; padding:5px 9px; border-radius:10px;
+  border:1px solid var(--border); background:var(--surface-soft); color:var(--text); font-family:inherit; cursor:pointer; text-align:left; min-width:0; }
+.auto-btn span{ font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.02em; color:var(--text-muted); white-space:nowrap; }
+.auto-btn b{ font-size:13.5px; line-height:1.2; }
+.auto-btn.vazia b{ color:var(--text-muted); font-weight:600; }
+.auto-btn.boa{ border-color:var(--ok-border); background:var(--ok-bg); }
+.auto-btn.boa b{ color:var(--ok); }
+.auto-btn.ruim{ border-color:color-mix(in srgb, var(--amber) 45%, var(--border)); background:color-mix(in srgb, var(--amber) 12%, var(--surface)); }
+.auto-btn.ruim b{ color:var(--amber); }
+.auto-folha{ position:fixed; left:0; right:0; bottom:0; z-index:1001; width:min(560px, 100vw); margin:0 auto; max-height:85vh; overflow-y:auto;
+  background:var(--panel); border-radius:16px 16px 0 0; box-shadow:var(--shadow-lg); padding:14px 14px calc(16px + env(safe-area-inset-bottom));
+  display:flex; flex-direction:column; gap:8px; }
+.auto-folha-topo{ display:flex; align-items:flex-start; gap:8px; margin-bottom:2px; }
+.auto-folha-topo > div{ flex:1 1 auto; }
+.auto-folha-topo .btn-ghost{ font-size:18px; }
+.auto-opcao{ display:grid; grid-template-columns:1fr auto; grid-template-areas:"t s" "d s"; align-items:center; gap:2px 10px; text-align:left;
+  min-height:56px; padding:10px 14px; border-radius:12px; border:1px solid var(--border); background:var(--surface); color:var(--text); font-family:inherit; cursor:pointer; }
+.auto-opcao b{ grid-area:t; font-size:16px; }
+.auto-opcao span{ grid-area:d; font-size:12.5px; color:var(--text-muted); }
+.auto-opcao i{ grid-area:s; font-style:normal; font-size:11.5px; font-weight:700; color:var(--text-muted); }
+.auto-opcao.boa b{ color:var(--ok); }
+.auto-opcao.ruim b{ color:var(--amber); }
+.auto-opcao.ativo{ border-color:var(--accent-bg); box-shadow:0 0 0 2px var(--accent-bg) inset; }
+.auto-opcao.limpar{ display:block; text-align:center; min-height:46px; color:var(--danger); border-style:dashed; }
 .chip-mini{ min-height:34px; padding:5px 11px; font-size:12.5px; }
 .chip-limpar{ color:var(--danger); border-style:dashed; }
 .ficha-progresso{ display:flex; align-items:center; gap:10px; font-size:12.5px; color:var(--text-muted); }
