@@ -46,19 +46,29 @@ let _procurouAoAbrir = false, _sresFichas = null;
 
 // ---------- modelo ----------
 function blocoFicha(r, f) { return MODELO_FICHA.find((b) => b.r === r && b.f === f) || null; }
+// "R1|201ETO0250" de todos os S.R.E. das fichas — com a região, porque ACESSO01/02
+// têm o mesmo nome em várias regiões (cada uma com o seu traçado)
 function sresDasFichas() {
-  if (!_sresFichas) _sresFichas = new Set(MODELO_FICHA.flatMap((b) => b.trechos.flatMap((t) => t.sres.map((y) => y[0]))));
+  if (!_sresFichas) _sresFichas = new Set(MODELO_FICHA.flatMap((b) => b.trechos.flatMap((t) => t.sres.map((y) => b.r + "|" + y[0]))));
   return _sresFichas;
 }
-// Ficha (região, tipo, trecho) de um S.R.E.; se ele aparece em mais de uma, prefere a
-// da região/tipo indicados, depois a do tipo da situação do S.R.E.
-function fichaDoSre(sre, rPref, fPref) {
-  const candidatos = MODELO_FICHA.filter((b) => b.trechos.some((t) => t.sres.some((y) => y[0] === sre)));
+// Ficha (tipo, trecho) de um S.R.E. da região; se ele aparece nas duas fichas da
+// região, prefere o tipo indicado, depois o da situação do S.R.E.
+function fichaDoSre(regiao, sre, fPref) {
+  const candidatos = MODELO_FICHA.filter((b) => b.r === regiao && b.trechos.some((t) => t.sres.some((y) => y[0] === sre)));
   if (!candidatos.length) return null;
-  const info = SRE_KM.find((x) => x.s === sre);
-  const bloco = candidatos.find((b) => b.r === rPref && b.f === fPref) || candidatos.find((b) => info && b.f === info.f) || candidatos[0];
+  const info = SRE_KM.find((x) => x.r === regiao && x.s === sre);
+  const bloco = candidatos.find((b) => b.f === fPref) || candidatos.find((b) => info && b.f === info.f) || candidatos[0];
   const trecho = bloco.trechos.find((t) => t.sres.some((y) => y[0] === sre));
   return { r: bloco.r, f: bloco.f, tr: trecho.tr };
+}
+// Aviso ao lado do S.R.E. na ficha quando o GPS não consegue preencher as linhas dele
+function avisoTracado(regiao, sre) {
+  const t = situacaoTracado(regiao, sre);
+  const nota = (txt) => ' <span class="rotulo-mini">(' + txt + " — marque tocando na linha)</span>";
+  if (t.sem) return nota("sem traçado no mapa");
+  if (t.naoBate) return nota("traçado do mapa tem " + numBR(t.extTracado) + " km, não bate com a ficha");
+  return "";
 }
 function trechoFicha(s) { const b = blocoFicha(s.r, s.f); return b ? b.trechos.find((t) => t.tr === s.tr) || null : null; }
 function idFichaLocal(s) { return s.comp + "|" + s.r + "|" + s.f + "|" + s.tr; }
@@ -276,12 +286,19 @@ function aoMudarPosicao(pos) {
   if (!trecho || s.trocando) return;
   s.posicao = { lat: pos.coords.latitude, lng: pos.coords.longitude, precisao: pos.coords.accuracy };
   s.gpsErro = "";
-  const sresDaFicha = new Set(trecho.sres.map((x) => x[0]));
-  const achado = localizarNoSre(s.posicao.lat, s.posicao.lng, (x) => sresDaFicha.has(x.s));
+  const sresDaFicha = new Set(trecho.sres.map((x) => s.r + "|" + x[0]));
+  const achado = localizarNoSre(s.posicao.lat, s.posicao.lng, (x) => sresDaFicha.has(x.r + "|" + x.s));
   const limite = Math.max(DIST_MAX_FICHA_M, (s.posicao.precisao || 0) * 1.5);
   if (verificarOutroTrecho(achado, limite, sresDaFicha)) return;
   if (!achado || achado.distancia > limite) {
     s.linhaAtual = { fora: true, distancia: achado ? achado.distancia : null };
+    atualizarGpsNaTela();
+    return;
+  }
+  // traçado que não bate com a ficha: sabe o S.R.E., mas não a linha — marca à mão
+  if (achado.tracadoNaoBate) {
+    s.linhaAtual = { naoBate: true, sre: achado.sre, distancia: achado.distancia };
+    s.ultimaLinhaAuto = null;
     atualizarGpsNaTela();
     return;
   }
@@ -316,9 +333,9 @@ function aoMudarPosicao(pos) {
 function verificarOutroTrecho(achado, limite, sresDaFicha) {
   const s = fichaState, p = s.posicao;
   if (achado && achado.distancia <= TROCA_MARGEM_M) { s.candidato = null; return false; }
-  const outro = localizarNoSre(p.lat, p.lng, (x) => sresDasFichas().has(x.s) && !sresDaFicha.has(x.s));
+  const outro = localizarNoSre(p.lat, p.lng, (x) => sresDasFichas().has(x.r + "|" + x.s) && !sresDaFicha.has(x.r + "|" + x.s));
   const dest = outro && outro.distancia <= limite && (!achado || achado.distancia - outro.distancia >= TROCA_MARGEM_M)
-    ? fichaDoSre(outro.sre, s.r, s.f) : null;
+    ? fichaDoSre(outro.regiao, outro.sre, s.f) : null;
   if (!dest) { s.candidato = null; return false; }
   const chave = dest.r + "|" + dest.f + "|" + dest.tr;
   const c = s.candidato;
@@ -377,7 +394,7 @@ function renderFicha() {
   for (const l of linhas) {
     if (l.sre !== sreAnterior) {
       linhasHtml += '<div class="ficha-sre">S.R.E. <b>' + esc(l.sre) + "</b> · " + numBR(l.marcos[l.marcos.length - 1]) + " km"
-        + (SRE_KM.some((x) => x.s === l.sre) ? "" : ' <span class="rotulo-mini">(sem traçado no mapa — marque tocando na linha)</span>') + "</div>";
+        + avisoTracado(s.r, l.sre) + "</div>";
       sreAnterior = l.sre;
     }
     const marcas = juntas[l.chave] || {};
@@ -470,6 +487,7 @@ function atualizarGpsNaTela() {
       : !l ? "Procurando o GPS…"
       : l.fora ? "<b>Fora deste trecho</b>" + (l.distancia != null ? " (" + (l.distancia >= 1000 ? (l.distancia / 1000).toFixed(1) + " km" : Math.round(l.distancia) + " m") + " da rodovia mais perto dele)" : "")
         + '<div class="rotulo-mini">Entrando em outro trecho das fichas, a ficha troca sozinha.</div>'
+      : l.naoBate ? "Você está no <b>S.R.E. " + esc(l.sre) + "</b>, mas o traçado dele no mapa não bate com a ficha — o km não dá pra saber pelo GPS. <b>Marque tocando na linha.</b>"
       : "Você está no <b>S.R.E. " + esc(l.sre) + "</b> · km " + l.km.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " · linha <b>" + numBR(l.ini) + "–" + numBR(l.fim) + "</b>";
     const aviso = s.avisoTroca && Date.now() < s.avisoTroca.ate ? '<div class="aviso-proximo">' + esc(s.avisoTroca.txt) + "</div>" : "";
     txt = aviso + '<div class="ficha-gps-ativo"><span class="ponto-gps"></span><div>' + info
@@ -632,9 +650,9 @@ async function acharFichaPeloLocal() {
   s.procurando = false;
   if (s.tr) return true; // escolheu na mão enquanto o GPS procurava
   if (!c) { s.gpsErro = "Não consegui a localização (GPS desligado ou permissão negada)."; renderFicha(); return false; }
-  const achado = localizarNoSre(c.lat, c.lng, (x) => sresDasFichas().has(x.s));
+  const achado = localizarNoSre(c.lat, c.lng, (x) => sresDasFichas().has(x.r + "|" + x.s));
   if (!achado || achado.distancia > 3000) { s.gpsErro = "Nenhum trecho das fichas perto daqui."; renderFicha(); return false; }
-  const dest = fichaDoSre(achado.sre);
+  const dest = fichaDoSre(achado.regiao, achado.sre);
   await abrirFichaInspecao(dest.r, dest.f, dest.tr, s.comp);
   if (achado.distancia <= 1000 && !s.acompanhando) acompanhar();
   return true;

@@ -282,7 +282,8 @@ function limparKm() {
 
 function aplicarKm(achado) {
   const s = alertaState;
-  Object.assign(s, { sre: achado.sre, km: achado.km, extensaoKm: achado.extensaoKm, distancia: achado.distancia, situacao: achado.situacao, fichaDoSre: achado.ficha });
+  // traçado que não bate com a ficha: o S.R.E. vale, o km não (fica sem)
+  Object.assign(s, { sre: achado.sre, km: achado.tracadoNaoBate ? null : achado.km, extensaoKm: achado.extensaoKm, distancia: achado.distancia, situacao: achado.situacao, fichaDoSre: achado.ficha });
   // veio da aba Ficha: vale o tipo da ficha que está sendo preenchida (não apaga o que veio de lá)
   if (s.preFicha) { s.tipoFicha = s.preFicha.f; return; }
   // o tipo de ficha segue o S.R.E.; se mudou, as marcações da outra ficha não valem

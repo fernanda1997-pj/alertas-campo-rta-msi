@@ -74,7 +74,37 @@ function localizarNoSre(lat, lng, soDoTrecho) {
       ant = atual;
     }
   }
+  if (melhor) {
+    // o que vale é a extensão da ficha: o km do traçado é esticado/encolhido até ela
+    const t = situacaoTracado(melhor.regiao, melhor.sre);
+    if (t.fator) { melhor.km *= t.fator; melhor.extensaoKm = t.extFicha; }
+    if (t.naoBate) melhor.tracadoNaoBate = true; // diferença grande demais: km do GPS não confiável
+  }
   return melhor;
+}
+
+// Traçado do mapa × extensão do S.R.E. na ficha (js/modelo-ficha.js). Até
+// ESCALA_MAX_TRACADO vezes de diferença (a mesma folga do converter_fichas), o
+// km é corrigido na proporção; passou disso, o traçado é de outro pedaço da via
+// (ou está incompleto) e o km do GPS não vale. Chave região+S.R.E.: ACESSO01/02
+// têm o mesmo nome em várias regiões.
+const ESCALA_MAX_TRACADO = 1.8;
+let _extensoesFicha = null;
+function situacaoTracado(regiao, sre) {
+  if (!_extensoesFicha) {
+    _extensoesFicha = {};
+    if (typeof MODELO_FICHA !== "undefined") for (const b of MODELO_FICHA) for (const t of b.trechos) for (const [s, marcos] of t.sres) {
+      const k = b.r + "|" + s;
+      _extensoesFicha[k] = Math.max(_extensoesFicha[k] || 0, marcos[marcos.length - 1]);
+    }
+  }
+  const extFicha = _extensoesFicha[regiao + "|" + sre];
+  const tracado = SRE_KM.find((x) => x.r === regiao && x.s === sre);
+  if (!tracado) return { sem: true, extFicha: extFicha || null };
+  if (!extFicha) return { extFicha: null };
+  const fator = extFicha / (tracado.c / 1000);
+  if (fator > ESCALA_MAX_TRACADO || fator < 1 / ESCALA_MAX_TRACADO) return { naoBate: true, extFicha, extTracado: tracado.c / 1000 };
+  return { fator, extFicha };
 }
 
 // "km 3,42 · faixa 3–4 da ficha" — a ficha é de 1 em 1 km a partir do INÍCIO
@@ -121,7 +151,7 @@ function textoKmAlerta(a) {
   if (km == null || !a.sre) return "";
   const l = typeof MODELO_FICHA !== "undefined" ? linhaDaFicha(a) : null;
   if (!l) {
-    const info = SRE_KM.find((x) => x.s === a.sre);
+    const info = SRE_KM.find((x) => x.s === a.sre && (!a.regiao || x.r === a.regiao));
     return textoKm(km, info ? info.c / 1000 : null);
   }
   const n = (v) => v.toLocaleString("pt-BR", { maximumFractionDigits: 3 });
