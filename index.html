@@ -21,6 +21,7 @@
     <div class="marca">Alertas de Campo</div>
     <div class="tabs">
       <button class="tab-btn active" id="tabbtn-alerta" onclick="mudarAba('alerta')">Novo alerta</button>
+      <button class="tab-btn" id="tabbtn-ficha" onclick="mudarAba('ficha')">Ficha</button>
       <button class="tab-btn" id="tabbtn-painel" onclick="mudarAba('painel')">Painel</button>
     </div>
     <div class="usuario-chip">
@@ -34,6 +35,9 @@
       <div id="mount-alerta" class="painel-app" style="width:440px; max-width:100%;"></div>
       <input type="file" id="input-foto" accept="image/*" capture="environment" multiple style="display:none">
     </div>
+    <div id="aba-ficha" class="aba-centro" style="display:none;">
+      <div id="mount-ficha" class="painel-app" style="width:560px; max-width:100%;"></div>
+    </div>
     <div id="aba-painel" style="display:none;">
       <div id="mount-painel" class="painel-app"></div>
     </div>
@@ -41,6 +45,7 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 <script src="js/api.js"></script>
 <script src="js/trechos-geo.js"></script>
 <script src="js/sre-km.js"></script>
@@ -51,6 +56,8 @@
 <script src="js/fila.js"></script>
 <script src="js/alerta.js"></script>
 <script src="js/camera.js"></script>
+<script src="js/ficha.js"></script>
+<script src="js/ficha-xlsx.js"></script>
 <script src="js/painel.js"></script>
 <script src="js/app.js"></script>
 <script src="js/registrar-sw.js"></script>

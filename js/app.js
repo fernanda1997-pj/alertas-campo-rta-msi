@@ -42,14 +42,17 @@ document.getElementById("btn-trocar-nome").addEventListener("click", () => {
   renderAlerta();
   await recuperarRascunho(); // alerta que ficou pela metade quando o app fechou
   processarFila();
+  enviarFichasPendentes(); // ficha preenchida sem sinal numa sessão anterior
   atualizarSeloPainel();
   setInterval(() => atualizarSeloPainel(), 300000); // aviso de alerta novo sem precisar recarregar (5 min)
 })();
 
 function mudarAba(aba) {
-  for (const nome of ["alerta", "painel"]) {
+  for (const nome of ["alerta", "ficha", "painel"]) {
     document.getElementById("aba-" + nome).style.display = aba === nome ? "" : "none";
     document.getElementById("tabbtn-" + nome).classList.toggle("active", aba === nome);
   }
-  if (aba === "alerta") renderAlerta();  if (aba === "painel") carregarPainel();
+  if (aba === "alerta") renderAlerta();
+  if (aba === "ficha") abrirAbaFicha();
+  if (aba === "painel") carregarPainel();
 }

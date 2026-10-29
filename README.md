@@ -33,6 +33,29 @@ entra foto JPEG no caminho que o site gera. **Não divulgar o link fora da equip
 
 Se faltar alguma variável, o app mostra "SharePoint não configurado".
 
+## Aba Ficha (preencher a Ficha de Inspeção em campo)
+
+Escolhe região + tipo + trecho (ou "Achar pelo meu local"), liga **Acompanhar
+minha localização** e marca a condição atual de cada grupo em **Preencher ao
+passar**: toda linha por onde o carro passa é marcada assim (não precisa ser de
+km em km; trocou a condição depois da metade da linha, ela fica como estava).
+Qualquer linha pode ser marcada à mão, e copiada até outra linha.
+
+- Várias pessoas no mesmo trecho: cada aparelho grava só o próprio arquivo em
+  `Alertas-Campo/fichas/<AAAA-MM>/<R>-<pav|np>/<trecho>__<aparelho>.json`
+  (`api/ficha.js`); na tela e na planilha vale a marcação mais recente de cada célula.
+- Sem sinal: fica no celular (IndexedDB) e sobe quando o sinal voltar.
+- **Baixar planilha (.xlsx)**: a ficha real da região/tipo (`modelos/`) com os X
+  nas células certas, mexendo só no XML das abas — formatação, fórmulas e
+  gráficos intactos; o Excel recalcula ao abrir. Linha sem marcação sai em branco.
+- Limite: o navegador só lê o GPS com o app aberto e a tela ligada.
+
+`js/modelo-ficha.js` e `modelos/*.xlsx` vêm das fichas reais mais recentes
+(`web - fichas/ficha-inspecao/fichas/LOTE*/<mês>/`). Chegou ficha de mês novo
+ou mudou o modelo:
+
+    python ferramentas/gerar_modelo_ficha.py
+
 ## Atualizar o km dos S.R.E.
 
 `js/sre-km.js` é gerado a partir dos shapefiles usados pelas fichas

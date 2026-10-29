@@ -49,15 +49,17 @@ function encontrarTrechoMaisProximo(lat, lng) {
 // (km 0 = INÍCIO do S.R.E.). SRE_KM (js/sre-km.js) traz, em cada vértice, os
 // metros desde o início, calculados pelo mesmo converter das fichas; aqui
 // só projeta o ponto no trecho de reta mais perto e interpola.
-// soDoTrecho: depois de uma correção manual, procura só nos S.R.E. daquele trecho.
+// soDoTrecho: nome do trecho (depois de uma correção manual) ou uma função
+// (s) => bool pra escolher quais S.R.E. entram (a aba Ficha usa os da ficha aberta).
 // Retorna {regiao, sre, trecho, distancia (m do eixo), km} ou null.
 function localizarNoSre(lat, lng, soDoTrecho) {
   const R = 6371000;
   const cosLat = Math.cos(lat * Math.PI / 180);
   const proj = (lo, la) => [(lo - lng) * Math.PI / 180 * R * cosLat, (la - lat) * Math.PI / 180 * R];
+  const entra = typeof soDoTrecho === "function" ? soDoTrecho : soDoTrecho ? (s) => s.t === soDoTrecho : () => true;
   let melhor = null;
   for (const s of SRE_KM) {
-    if (soDoTrecho && s.t !== soDoTrecho) continue;
+    if (!entra(s)) continue;
     let ant = proj(s.p[0][0], s.p[0][1]);
     for (let i = 1; i < s.p.length; i++) {
       const atual = proj(s.p[i][0], s.p[i][1]);

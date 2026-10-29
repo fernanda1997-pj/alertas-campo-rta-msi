@@ -5,12 +5,13 @@
 const FILA_DB_NOME = "alertas-campo-fila";
 const FILA_STORE = "alertas";
 const RASCUNHO_STORE = "rascunho"; // alerta ainda não enviado (ver salvarFotoRascunho)
+const FICHA_STORE = "fichas";      // marcações da aba Ficha deste aparelho (ver js/ficha.js)
 
 function abrirFilaDB() {
   return new Promise((resolve, reject) => {
-    const pedido = indexedDB.open(FILA_DB_NOME, 2);
+    const pedido = indexedDB.open(FILA_DB_NOME, 3);
     pedido.onupgradeneeded = () => {
-      for (const nome of [FILA_STORE, RASCUNHO_STORE]) {
+      for (const nome of [FILA_STORE, RASCUNHO_STORE, FICHA_STORE]) {
         if (!pedido.result.objectStoreNames.contains(nome)) pedido.result.createObjectStore(nome, { keyPath: "id" });
       }
     };
@@ -44,6 +45,13 @@ function removerFotoRascunho(id) { return _tx(RASCUNHO_STORE, "readwrite", (s) =
 function salvarEstadoRascunho(estado) { return _tx(RASCUNHO_STORE, "readwrite", (s) => { s.put({ id: ID_ESTADO_RASCUNHO, estado }); }); }
 function listarRascunho() { return _tx(RASCUNHO_STORE, "readonly", (s) => s.getAll()).then((r) => r || []); }
 function limparRascunho() { return _tx(RASCUNHO_STORE, "readwrite", (s) => { s.clear(); }); }
+
+// ---- Ficha: o que ESTE aparelho marcou em cada trecho (id "AAAA-MM|R1|np|20") ----
+// Fica no celular primeiro (funciona sem sinal) e sobe pro SharePoint quando dá;
+// `pendente` = mudou desde o último envio.
+function salvarFichaLocal(doc) { return _tx(FICHA_STORE, "readwrite", (s) => { s.put(doc); }); }
+function lerFichaLocal(id) { return _tx(FICHA_STORE, "readonly", (s) => s.get(id)); }
+function listarFichasLocais() { return _tx(FICHA_STORE, "readonly", (s) => s.getAll()).then((r) => r || []); }
 
 // Sem isso o navegador pode apagar a fila sozinho (Safari depois de ~7 dias,
 // Android quando falta espaço). Não mostra pergunta nenhuma pra pessoa.

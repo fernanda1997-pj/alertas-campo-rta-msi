@@ -6,7 +6,7 @@
 // - api/ (alertas e fotos no SharePoint) e qualquer outra origem (tiles do
 //   mapa): nunca interceptar. Já houve bug no Fotos de Campo por guardar
 //   resposta de dados em cache — a lista nunca mais atualizava.
-const CACHE_ESTATICO = "alertas-campo-static-v6";
+const CACHE_ESTATICO = "alertas-campo-static-v7";
 const CDN_HOSTNAME = "cdn.jsdelivr.net";
 
 const ARQUIVOS_APP = [
@@ -24,6 +24,8 @@ const ARQUIVOS_APP = [
   "js/fila.js",
   "js/alerta.js",
   "js/camera.js",
+  "js/ficha.js",
+  "js/ficha-xlsx.js",
   "js/painel.js",
   "js/app.js",
   "js/registrar-sw.js",
@@ -37,7 +39,8 @@ const ARQUIVOS_APP = [
 
 const ARQUIVOS_CDN = [
   "https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js",
-  "https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css"
+  "https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css",
+  "https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"
 ];
 
 self.addEventListener("install", (evento) => {

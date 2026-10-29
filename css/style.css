@@ -203,6 +203,40 @@ textarea.input{ height:auto; padding:10px 14px; resize:vertical; }
 .spinner{ width:18px; height:18px; border-radius:50%; border:2.5px solid var(--border); border-top-color:var(--accent); animation:girar .7s linear infinite; flex:0 0 auto; }
 @keyframes girar{ to{ transform:rotate(360deg); } }
 
+/* ---------- Ficha (preencher em campo) ---------- */
+.ficha-tela{ padding:14px; display:flex; flex-direction:column; gap:12px; }
+.lista-titulo-ficha{ font-size:16px; font-weight:700; color:var(--accent); }
+.ficha-cabeca{ display:flex; align-items:flex-start; gap:10px; font-size:14px; line-height:1.4; }
+.ficha-cabeca > div{ flex:1 1 auto; min-width:0; }
+.ficha-gps-ativo{ display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:12px; background:var(--accent-soft);
+  border:1px solid color-mix(in srgb, var(--accent) 30%, var(--border)); font-size:13.5px; line-height:1.45; }
+.ficha-gps-ativo > div{ flex:1 1 auto; min-width:0; }
+.ponto-gps{ flex:0 0 12px; height:12px; border-radius:50%; background:var(--info); box-shadow:0 0 0 0 color-mix(in srgb, var(--info) 60%, transparent); animation:pulsar 1.6s infinite; }
+@keyframes pulsar{ 70%{ box-shadow:0 0 0 10px transparent; } 100%{ box-shadow:0 0 0 0 transparent; } }
+.ficha-auto{ border:1px solid var(--border); border-radius:12px; background:var(--surface); padding:10px 12px; display:flex; flex-direction:column; gap:8px; }
+.ficha-auto summary{ cursor:pointer; font-size:14px; display:flex; align-items:center; gap:10px; }
+.ficha-auto[open] summary{ margin-bottom:6px; }
+.chave-auto{ margin-left:auto; font-size:12.5px; font-weight:600; color:var(--text-muted); display:flex; align-items:center; gap:5px; }
+.auto-grupo{ display:flex; flex-direction:column; gap:5px; margin-top:6px; }
+.chip-mini{ min-height:34px; padding:5px 11px; font-size:12.5px; }
+.chip-limpar{ color:var(--danger); border-style:dashed; }
+.ficha-progresso{ display:flex; align-items:center; gap:10px; font-size:12.5px; color:var(--text-muted); }
+.ficha-progresso .barra{ flex:1 1 auto; height:8px; border-radius:4px; background:var(--surface-soft); border:1px solid var(--border); overflow:hidden; }
+.ficha-progresso .barra i{ display:block; height:100%; background:var(--ok); }
+.ficha-cab-grupos, .ficha-linha{ display:grid; grid-template-columns:72px repeat(var(--n, 5), minmax(0,1fr)) 30px; gap:4px; align-items:center; }
+.ficha-cab-grupos{ font-size:10.5px; font-weight:700; color:var(--text-muted); text-transform:uppercase; padding:0 6px; }
+.ficha-linhas{ display:flex; flex-direction:column; gap:3px; }
+.ficha-sre{ margin-top:8px; font-size:12.5px; color:var(--accent); }
+.ficha-linha{ border:1px solid var(--border); background:var(--surface); border-radius:8px; padding:6px; cursor:pointer; font-family:inherit; color:var(--text); text-align:left; }
+.ficha-linha.atual{ border-color:var(--info); box-shadow:0 0 0 2px color-mix(in srgb, var(--info) 45%, transparent); background:color-mix(in srgb, var(--info) 8%, var(--surface)); }
+.ficha-km{ font-size:12.5px; font-weight:700; white-space:nowrap; }
+.ficha-cel{ font-size:11px; font-weight:700; text-align:center; border-radius:5px; padding:3px 2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.ficha-cel.vazia{ color:var(--text-muted); }
+.ficha-cel.boa{ background:var(--ok-bg); color:var(--ok); }
+.ficha-cel.ruim{ background:color-mix(in srgb, var(--amber) 16%, var(--surface)); color:var(--amber); }
+.ficha-alerta{ font-size:11px; color:var(--danger); font-weight:700; text-align:right; }
+.editor-linha .grupo-ficha{ margin-bottom:6px; }
+
 /* ---------- Painel ---------- */
 .linha-alerta-topo{ display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
 .painel-tela{ display:flex; flex-direction:column; }

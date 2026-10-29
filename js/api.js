@@ -36,5 +36,11 @@ async function apiEnviarFoto(caminho, arquivo) {
   return chamarApi("POST", "api/foto", { caminho, conteudoBase64: await arquivoParaBase64(arquivo) });
 }
 
+// Ficha de Inspeção em campo (api/ficha.js): um arquivo por aparelho por trecho
+function apiLerFicha(comp, r, f, tr) {
+  return chamarApi("GET", "api/ficha?comp=" + encodeURIComponent(comp) + "&r=" + encodeURIComponent(r) + "&f=" + encodeURIComponent(f) + (tr ? "&tr=" + encodeURIComponent(tr) : ""));
+}
+function apiGravarFicha(doc) { return chamarApi("POST", "api/ficha", doc); }
+
 // Endereço da foto pra usar direto em <img src> / link
 function urlFoto(caminho) { return "api/foto?c=" + encodeURIComponent(caminho); }
