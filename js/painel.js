@@ -17,6 +17,7 @@ const COR_MAPA = { aberto: "#DC2626", resolvido: "#16A34A", descartado: "#94A3B8
 async function carregarPainel() {
   painelState.carregando = true; painelState.erro = "";
   renderPainel();
+  carregarFichasPainel(); // as fichas do mês vêm junto (em paralelo)
   try {
     painelState.lista = await apiListarAlertas();
     painelState.carregou = true;
@@ -57,26 +58,17 @@ function ordenarParaTriagem(lista) {
   });
 }
 
-// Alertas | Fichas percorridas (js/painel-fichas.js)
-function htmlModoPainel() {
-  const modo = painelState.modo || "alertas";
-  return '<div class="seletor-ficha painel-modo">'
-    + '<button class="seg' + (modo === "alertas" ? " ativo" : "") + '" data-modo-painel="alertas">Alertas</button>'
-    + '<button class="seg' + (modo === "fichas" ? " ativo" : "") + '" data-modo-painel="fichas">Fichas percorridas</button></div>';
-}
-function ligarModoPainel(m) {
-  m.querySelectorAll("[data-modo-painel]").forEach((b) => b.addEventListener("click", () => {
-    painelState.modo = b.dataset.modoPainel;
-    if (painelState.modo === "fichas" && !fichasPainel.docs && !fichasPainel.carregando) carregarFichasPainel();
-    else renderPainel();
-  }));
-}
-
+// Alertas e Fichas percorridas (js/painel-fichas.js) na MESMA tela: um mapa só (as
+// linhas da ficha coloridas por baixo, os pontos de alerta por cima) e a lista com
+// as duas seções. A região filtra os dois; o mês das fichas é separado do dos
+// alertas (a ficha é sempre de um mês; alerta aberto de mês passado continua na lista).
 function renderPainel() {
   const m = document.getElementById("mount-painel");
   if (!m) return;
-  if (painelState.modo === "fichas") { renderPainelFichas(m); return; }
-  const s = painelState;
+  const s = painelState, st = fichasPainel;
+  const mostrar = s.mostrar || (s.mostrar = { alertas: true, fichas: true });
+  const secoes = s.secoes || (s.secoes = { alertas: true, trechos: true });
+  const trechos = st.docs ? trechosPercorridos() : [];
   const contagem = {};
   for (const a of s.lista) contagem[a.status] = (contagem[a.status] || 0) + 1;
   const abertos = s.lista.filter((a) => STATUS_ABERTOS.includes(a.status)).length;
@@ -102,8 +94,13 @@ function renderPainel() {
     + "</button>"
   ).join("");
 
+  const vazioAlertas = '<div class="vazio-msg">' + (s.carregou ? "Nenhum alerta com esse filtro." : s.carregando ? "Carregando…" : "") + "</div>";
+  const vazioTrechos = '<div class="vazio-msg">' + (st.carregando ? "Carregando…" : st.docs ? "Ninguém preencheu ficha em " + esc(rotuloMes(st.comp)) + (s.filtroRegiao ? " nessa região" : "") + " ainda." : "") + "</div>";
+  const secao = (id, titulo, n, corpo) => '<details class="secao-lista" data-secao="' + id + '"' + (secoes[id] ? " open" : "") + ">"
+    + "<summary>" + titulo + ' <span class="chip-contagem-n">' + n + "</span></summary>" + corpo + "</details>";
+
   m.innerHTML = '<div class="painel-tela">'
-    + '<div class="painel-toolbar">' + htmlModoPainel()
+    + '<div class="painel-toolbar">'
     + '<div class="chips-contagem">' + chips + "</div>"
     + '<div class="painel-filtros">'
     + '<select class="input input-mini" id="f-regiao"><option value="">Todas as regiões</option>' + opts(Object.keys(REGIOES), s.filtroRegiao, rotuloRegiao) + "</select>"
@@ -116,16 +113,27 @@ function renderPainel() {
     + '<select class="input input-mini" id="f-ordem"><option value="triagem"' + (s.ordem === "triagem" ? " selected" : "") + '>Ordem: urgentes primeiro</option><option value="sre"' + (s.ordem === "sre" ? " selected" : "") + ">Ordem: S.R.E. e km (ficha)</option></select>"
     + '<button class="btn btn-primary btn-mini" id="btn-ficha" title="Todos os km (de 1 em 1) dos S.R.E. dos trechos com alerta, com o que marcar em cada grupo da ficha (usa os filtros da tela)">Linhas da ficha (CSV)</button>'
     + '<button class="btn btn-outline btn-mini" id="btn-csv">Alertas (CSV)</button>'
-    + '<button class="btn btn-outline btn-mini" id="btn-recarregar-painel"' + (s.carregando ? " disabled" : "") + ">" + (s.carregando ? "Carregando…" : "Recarregar") + "</button>"
+    + '<button class="btn btn-outline btn-mini" id="btn-recarregar-painel"' + (s.carregando || st.carregando ? " disabled" : "") + ">" + (s.carregando || st.carregando ? "Carregando…" : "Recarregar") + "</button>"
     + "</div></div>"
+    + '<div class="painel-toolbar painel-toolbar-fichas">'
+    + '<span class="rotulo-mini"><b>No mapa:</b></span>'
+    + '<label class="chave-auto"><input type="checkbox" id="m-alertas"' + (mostrar.alertas ? " checked" : "") + "> Alertas</label>"
+    + '<label class="chave-auto"><input type="checkbox" id="m-fichas"' + (mostrar.fichas ? " checked" : "") + "> Fichas percorridas</label>"
+    + '<div class="painel-filtros">' + htmlFiltrosFichas() + "</div></div>"
     + (s.erro ? '<div class="banner-err" style="margin:12px;">' + esc(s.erro) + "</div>" : "")
+    + (st.erro ? '<div class="banner-err" style="margin:12px;">' + esc(st.erro) + "</div>" : "")
     + '<div class="painel-corpo">'
     + '<div class="painel-mapa" id="mapa-painel"></div>'
-    + '<div class="painel-lista">' + (linhas || '<div class="vazio-msg">' + (s.carregou ? "Nenhum alerta com esse filtro." : "") + "</div>") + "</div>"
-    + "</div></div>"
-    + (s.aberto ? htmlFicha(s.aberto) : "");
+    + '<div class="painel-lista">'
+    + secao("alertas", "Alertas", lista.length, linhas || vazioAlertas)
+    + secao("trechos", "Trechos percorridos · " + esc(rotuloMes(st.comp)), trechos.length, trechos.map(htmlCartaoTrecho).join("") || vazioTrechos)
+    + "</div></div></div>"
+    + (s.aberto ? htmlFicha(s.aberto) : st.aberto ? htmlTrechoPainel(trechos.find((t) => t.k === st.aberto)) : "");
 
-  ligarModoPainel(m);
+  m.querySelectorAll("[data-secao]").forEach((d) => d.addEventListener("toggle", () => { secoes[d.dataset.secao] = d.open; }));
+  m.querySelector("#m-alertas").addEventListener("change", (e) => { mostrar.alertas = e.target.checked; renderPainel(); });
+  m.querySelector("#m-fichas").addEventListener("change", (e) => { mostrar.fichas = e.target.checked; renderPainel(); });
+  ligarFiltrosFichas(m, trechos);
   m.querySelectorAll("[data-filtro-status]").forEach((b) => b.addEventListener("click", () => { s.filtroStatus = b.dataset.filtroStatus; renderPainel(); }));
   m.querySelector("#f-regiao").addEventListener("change", (e) => { s.filtroRegiao = e.target.value; renderPainel(); });
   m.querySelector("#f-gravidade").addEventListener("change", (e) => { s.filtroGravidade = e.target.value; renderPainel(); });
@@ -139,7 +147,7 @@ function renderPainel() {
   m.querySelectorAll("[data-abrir]").forEach((b) => b.addEventListener("click", () => abrirFicha(b.dataset.abrir)));
   if (s.aberto) ligarFicha(m);
 
-  desenharMapa(lista);
+  desenharMapa(mostrar.alertas ? lista : [], mostrar.fichas ? trechos : []);
 }
 
 const ZOOM_MARCOS_KM = 12; // a partir daqui 1 km já tem uns 25 px na tela
@@ -224,9 +232,11 @@ function novoMapaPainel() {
   return mapaPainel;
 }
 
-function desenharMapa(lista) {
+function desenharMapa(lista, trechos) {
   if (!novoMapaPainel()) return;
 
+  // linhas da ficha primeiro: os pontos de alerta ficam por cima delas
+  const fichas = desenharFichasNoMapa(mapaPainel, trechos || []);
   camadaMarcadores = L.layerGroup().addTo(mapaPainel);
   const pontos = [];
   // fechados desenhados primeiro, pra ficarem por baixo dos abertos (vermelhos)
@@ -248,16 +258,22 @@ function desenharMapa(lista) {
   const legenda = L.control({ position: "bottomleft" });
   legenda.onAdd = () => {
     const div = L.DomUtil.create("div", "legenda-mapa");
-    div.innerHTML = '<span><i style="background:' + COR_MAPA.aberto + '"></i>Em alerta</span>'
+    div.innerHTML = (lista.length ? '<b class="legenda-mapa-titulo">Alertas</b>'
+      + '<span><i style="background:' + COR_MAPA.aberto + '"></i>Em alerta</span>'
       + '<span><i style="background:' + COR_MAPA.resolvido + '"></i>Resolvido</span>'
       + '<span><i style="background:' + COR_MAPA.descartado + '"></i>Descartado</span>'
-      + '<span class="legenda-mapa-dica">ponto maior = urgente</span>'
+      + '<span class="legenda-mapa-dica">ponto maior = urgente</span>' : "")
+      + (fichas.tem ? htmlLegendaFichas() : "")
       + '<span class="legenda-mapa-dica">aproxime pra ver os km de cada S.R.E.</span>';
     return div;
   };
   legenda.addTo(mapaPainel);
 
-  if (pontos.length) mapaPainel.fitBounds(pontos, { padding: [30, 30], maxZoom: 13 });
+  // trecho aberto: aproxima nele; senão enquadra alertas e fichas juntos
+  if (fichas.doAberto) { mapaPainel.fitBounds(fichas.doAberto, { padding: [30, 30], maxZoom: 14 }); return; }
+  const area = L.latLngBounds(pontos);
+  if (fichas.tem) area.extend(fichas.limites);
+  if (area.isValid()) mapaPainel.fitBounds(area, { padding: [30, 30], maxZoom: 13 });
   else mapaPainel.setView([-8.5, -48.3], 6); // Tocantins
 }
 
@@ -276,6 +292,7 @@ async function abrirFicha(id) {
   if (!a) return;
   s.aberto = Object.assign({}, a);
   s.msgFicha = "";
+  fichasPainel.aberto = null; // um detalhe aberto por vez
   renderPainel();
   // abrir um alerta novo já marca como "visto" — o campo vê que alguém olhou
   if (a.status === "novo") {

@@ -1,12 +1,12 @@
-// Painel › "Fichas percorridas": o que o campo já percorreu e avaliou na Ficha de
-// Inspeção (aba Ficha do app), mês a mês — lista dos trechos com andamento e quem
-// passou, o mapa com cada linha da ficha colorida pela avaliação, e o detalhe do
-// trecho linha por linha. Lê todos os arquivos do mês no SharePoint (api/ficha.js,
+// Painel › "Fichas percorridas" (na mesma tela dos alertas, js/painel.js): o que o
+// campo já percorreu e avaliou na Ficha de Inspeção (aba Ficha do app), mês a mês —
+// cartões dos trechos com andamento e quem passou, as linhas da ficha coloridas
+// pela avaliação no mapa, e o detalhe do trecho linha por linha. Lê todos os arquivos do mês no SharePoint (api/ficha.js,
 // ?comp=) e junta igual à aba Ficha: em cada célula vale a marcação mais recente.
 
 let fichasPainel = {
   comp: mesAtual(), carregando: false, erro: "", docs: null,
-  filtroRegiao: "", grupo: "pior", // cor no mapa: pior condição da linha ou um grupo só
+  grupo: "pior",                    // cor no mapa: pior condição da linha ou um grupo só
   aberto: null                      // "R1|pav|3" com o detalhe aberto
 };
 
@@ -50,7 +50,7 @@ function trechosPercorridos() {
   const saida = [];
   for (const [k, docs] of Object.entries(porTrecho)) {
     const [r, f, tr] = k.split("|");
-    if (st.filtroRegiao && r !== st.filtroRegiao) continue;
+    if (painelState.filtroRegiao && r !== painelState.filtroRegiao) continue; // a região do Painel vale pros dois
     const bloco = blocoFicha(r, f);
     const trecho = bloco && bloco.trechos.find((t) => t.tr === tr);
     if (!trecho) continue;
@@ -79,53 +79,52 @@ function htmlResumoCondicao(cont) {
     .map((c) => '<span style="--cor:' + COR_CONDICAO[c] + '"><i></i>' + cont[c] + " " + ROTULO_CONDICAO[c].toLowerCase() + "</span>").join("") + "</div>";
 }
 
-function renderPainelFichas(m) {
+// Filtros das fichas na barra do Painel: mês da ficha e o que a cor do mapa mostra
+function htmlFiltrosFichas() {
   const st = fichasPainel;
-  const lista = st.docs ? trechosPercorridos() : [];
-  const regioes = [...new Set(MODELO_FICHA.map((b) => b.r))];
   const grupos = [...FICHAS.pav.grupos, ...FICHAS.np.grupos];
-
-  const cartoes = lista.map((t) => {
-    const pct = Math.round(100 * t.preenchidas / t.linhas.length);
-    return '<button class="linha-alerta' + (st.aberto === t.k ? " ativo" : "") + '" data-trecho-painel="' + esc(t.k) + '">'
-      + '<div class="linha-alerta-topo"><b>' + esc(rotuloRegiao(t.r)) + " · Trecho " + esc(t.tr) + '</b><span class="rotulo-mini" style="margin-left:auto;">' + tempoDesde(t.atualizado) + "</span></div>"
-      + '<div class="rotulo-mini">' + esc(t.trecho.tn) + " · " + esc(FICHAS[t.f].nome.toLowerCase()) + "</div>"
-      + '<div class="ficha-progresso"><div class="barra"><i style="width:' + pct + '%"></i></div><span>' + t.preenchidas + " de " + t.linhas.length + " linhas (" + pct + "%)</span></div>"
-      + htmlResumoCondicao(t.cont)
-      + '<div class="rotulo-mini">Por: ' + esc(t.pessoas.join(", ") || "?") + "</div></button>";
-  }).join("");
-
-  m.innerHTML = '<div class="painel-tela">'
-    + '<div class="painel-toolbar">' + htmlModoPainel()
-    + '<div class="painel-filtros">'
+  return '<label class="rotulo-mini" for="ff-mes">Fichas de</label>'
     + '<input class="input input-mini" type="month" id="ff-mes" value="' + esc(st.comp) + '" title="Mês da ficha">'
-    + '<select class="input input-mini" id="ff-regiao"><option value="">Todas as regiões</option>' + opts(regioes, st.filtroRegiao, rotuloRegiao) + "</select>"
-    + '<select class="input input-mini" id="ff-grupo" title="O que a cor do mapa mostra"><option value="pior"' + (st.grupo === "pior" ? " selected" : "") + ">Cor no mapa: pior condição</option>"
-    + grupos.map((g) => '<option value="' + g.id + '"' + (st.grupo === g.id ? " selected" : "") + ">Cor no mapa: " + esc(g.nome) + "</option>").join("") + "</select>"
-    + '<button class="btn btn-outline btn-mini" id="ff-recarregar"' + (st.carregando ? " disabled" : "") + ">" + (st.carregando ? "Carregando…" : "Recarregar") + "</button>"
-    + "</div></div>"
-    + (st.erro ? '<div class="banner-err" style="margin:12px;">' + esc(st.erro) + "</div>" : "")
-    + '<div class="painel-corpo">'
-    + '<div class="painel-mapa" id="mapa-painel"></div>'
-    + '<div class="painel-lista">' + (cartoes || '<div class="vazio-msg">' + (st.carregando ? "Carregando…" : st.docs ? "Ninguém preencheu ficha em " + esc(rotuloMes(st.comp)) + (st.filtroRegiao ? " nessa região" : "") + " ainda." : "") + "</div>") + "</div>"
-    + "</div></div>"
-    + (st.aberto ? htmlTrechoPainel(lista.find((t) => t.k === st.aberto)) : "");
+    + '<select class="input input-mini" id="ff-grupo" title="O que a cor das linhas da ficha mostra"><option value="pior"' + (st.grupo === "pior" ? " selected" : "") + ">Cor: pior condição</option>"
+    + grupos.map((g) => '<option value="' + g.id + '"' + (st.grupo === g.id ? " selected" : "") + ">Cor: " + esc(g.nome) + "</option>").join("") + "</select>";
+}
 
-  ligarModoPainel(m);
+function ligarFiltrosFichas(m, trechos) {
+  const st = fichasPainel;
   m.querySelector("#ff-mes").addEventListener("change", (e) => { if (/^\d{4}-\d{2}$/.test(e.target.value)) { st.comp = e.target.value; st.aberto = null; carregarFichasPainel(); } });
-  m.querySelector("#ff-regiao").addEventListener("change", (e) => { st.filtroRegiao = e.target.value; st.aberto = null; renderPainel(); });
   m.querySelector("#ff-grupo").addEventListener("change", (e) => { st.grupo = e.target.value; renderPainel(); });
-  m.querySelector("#ff-recarregar").addEventListener("click", carregarFichasPainel);
-  m.querySelectorAll("[data-trecho-painel]").forEach((b) => b.addEventListener("click", () => { st.aberto = b.dataset.trechoPainel; renderPainel(); }));
+  m.querySelectorAll("[data-trecho-painel]").forEach((b) => b.addEventListener("click", () => abrirTrechoPainel(b.dataset.trechoPainel)));
   const fechar = m.querySelector("#btn-fechar-trecho-painel");
   if (fechar) {
     const f = () => { st.aberto = null; renderPainel(); };
     fechar.addEventListener("click", f);
     m.querySelector("#fundo-trecho-painel").addEventListener("click", f);
-    const t = lista.find((x) => x.k === st.aberto);
+    const t = trechos.find((x) => x.k === st.aberto);
     m.querySelector("#btn-baixar-ficha-painel").addEventListener("click", (e) => baixarFichaXlsx(t.r, t.f, st.comp, e.currentTarget));
   }
-  desenharMapaFichas(lista);
+}
+
+function abrirTrechoPainel(k) {
+  fichasPainel.aberto = k;
+  painelState.aberto = null; // um detalhe aberto por vez
+  renderPainel();
+}
+
+function htmlCartaoTrecho(t) {
+  const pct = Math.round(100 * t.preenchidas / t.linhas.length);
+  return '<button class="linha-alerta linha-trecho' + (fichasPainel.aberto === t.k ? " ativo" : "") + '" data-trecho-painel="' + esc(t.k) + '">'
+    + '<div class="linha-alerta-topo"><b>' + esc(rotuloRegiao(t.r)) + " · Trecho " + esc(t.tr) + '</b><span class="rotulo-mini" style="margin-left:auto;">' + tempoDesde(t.atualizado) + "</span></div>"
+    + '<div class="rotulo-mini">' + esc(t.trecho.tn) + " · " + esc(FICHAS[t.f].nome.toLowerCase()) + "</div>"
+    + '<div class="ficha-progresso"><div class="barra"><i style="width:' + pct + '%"></i></div><span>' + t.preenchidas + " de " + t.linhas.length + " linhas (" + pct + "%)</span></div>"
+    + htmlResumoCondicao(t.cont)
+    + (t.completas < t.preenchidas ? '<div class="rotulo-mini" style="color:var(--amber)">' + (t.preenchidas - t.completas) + " linha(s) com grupo sem marcação</div>" : "")
+    + '<div class="rotulo-mini">Por: ' + esc(t.pessoas.join(", ") || "?") + "</div></button>";
+}
+
+function htmlLegendaFichas() {
+  const st = fichasPainel;
+  return '<b class="legenda-mapa-titulo">Ficha (' + (st.grupo === "pior" ? "pior condição" : esc((TODOS_GRUPOS.find((g) => g.id === st.grupo) || {}).nome || "")) + ")</b>"
+    + ["bom", "regular", "ruim"].map((c) => '<span><i style="background:' + COR_CONDICAO[c] + ';border-radius:2px"></i>' + ROTULO_CONDICAO[c] + "</span>").join("");
 }
 
 // Texto de uma linha pro tooltip do mapa: cada grupo marcado, por extenso, com quem marcou
@@ -136,9 +135,9 @@ function textoLinhaFicha(t, l) {
       .map((g) => "<br>" + esc(GRUPO_CURTO[g.id] || g.nome) + ": " + esc(textoExtenso(t.f, g, mk[g.id].c)) + ' <span style="color:#64748B">(' + esc(mk[g.id].por || "?") + ", " + tempoDesde(mk[g.id].em) + ")</span>").join("");
 }
 
-function desenharMapaFichas(lista) {
-  const mapa = novoMapaPainel();
-  if (!mapa) return;
+// Linhas da ficha no mapa do Painel. Devolve { tem, limites, doAberto } pro
+// enquadramento (js/painel.js desenharMapa).
+function desenharFichasNoMapa(mapa, lista) {
   const st = fichasPainel;
   const camada = L.featureGroup().addTo(mapa);
   let doAberto = null;
@@ -155,23 +154,13 @@ function desenharMapaFichas(lista) {
       L.polyline(recorteDoTracado(s, l.ini * 1000 / fator, l.fim * 1000 / fator), {
         color: COR_CONDICAO[cls], weight: st.aberto === t.k ? 9 : 6, opacity: 0.92, lineCap: "butt"
       }).bindTooltip(textoLinhaFicha(t, l), { sticky: true })
-        .on("click", () => { st.aberto = t.k; renderPainel(); })
+        .on("click", () => abrirTrechoPainel(t.k))
         .addTo(grupoDoTrecho);
     }
-    if (st.aberto === t.k && grupoDoTrecho.getLayers().length) doAberto = grupoDoTrecho;
+    if (st.aberto === t.k && grupoDoTrecho.getLayers().length) doAberto = grupoDoTrecho.getBounds();
   }
-  const legenda = L.control({ position: "bottomleft" });
-  legenda.onAdd = () => {
-    const div = L.DomUtil.create("div", "legenda-mapa");
-    div.innerHTML = ["bom", "regular", "ruim"].map((c) => '<span><i style="background:' + COR_CONDICAO[c] + ';border-radius:2px"></i>' + ROTULO_CONDICAO[c] + "</span>").join("")
-      + '<span class="legenda-mapa-dica">cada pedaço = uma linha da ficha</span>'
-      + '<span class="legenda-mapa-dica">' + (st.grupo === "pior" ? "cor = pior condição marcada" : "cor = " + esc((TODOS_GRUPOS.find((g) => g.id === st.grupo) || {}).nome || "")) + "</span>";
-    return div;
-  };
-  legenda.addTo(mapa);
-  const alvo = doAberto || (camada.getLayers().some((g) => g.getLayers().length) ? camada : null);
-  if (alvo) mapa.fitBounds(alvo.getBounds(), { padding: [30, 30], maxZoom: 14 });
-  else mapa.setView([-8.5, -48.3], 6); // Tocantins
+  const tem = camada.getLayers().some((g) => g.getLayers().length);
+  return { tem, limites: tem ? camada.getBounds() : null, doAberto };
 }
 
 // Detalhe do trecho: as linhas da ficha como no celular (só leitura), alertas
