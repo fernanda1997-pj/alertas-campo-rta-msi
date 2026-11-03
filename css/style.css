@@ -226,6 +226,9 @@ textarea.input{ height:auto; padding:10px 14px; resize:vertical; }
 .auto-btn span{ font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.02em; color:var(--text-muted); white-space:nowrap; }
 .auto-btn b{ font-size:13.5px; line-height:1.2; }
 .auto-btn.vazia b{ color:var(--text-muted); font-weight:600; }
+.auto-barra:has(.auto-falta) .auto-btn.vazia{ border:1px dashed var(--amber); background:color-mix(in srgb, var(--amber) 8%, var(--surface)); }
+.auto-barra:has(.auto-falta) .auto-btn.vazia b{ color:var(--amber); }
+.auto-falta{ font-size:12px; line-height:1.35; color:var(--amber); }
 .auto-btn.boa{ border-color:var(--ok-border); background:var(--ok-bg); }
 .auto-btn.boa b{ color:var(--ok); }
 .auto-btn.ruim{ border-color:color-mix(in srgb, var(--amber) 45%, var(--border)); background:color-mix(in srgb, var(--amber) 12%, var(--surface)); }

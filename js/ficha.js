@@ -327,8 +327,10 @@ function aoMudarPosicao(pos) {
     const idxAtual = linhas.findIndex((l) => l.chave === linha.chave);
     const idxAnt = ant ? linhas.findIndex((l) => l.chave === ant) : -1;
     let de = idxAtual, ate = idxAtual;
-    // a linha anterior já foi marcada quando o carro passou por ela: só as do meio
-    if (idxAnt >= 0 && linhas[idxAnt].sre === linha.sre && Math.abs(idxAtual - idxAnt) <= SALTO_MAX_LINHAS) {
+    // a linha anterior já foi marcada quando o carro passou por ela: só as do meio.
+    // Vale também na virada de um S.R.E. pro seguinte (a ficha os encadeia na ordem
+    // da via): no campo, a última linha curta do S.R.E. (58–58,755) ficava pulada.
+    if (idxAnt >= 0 && Math.abs(idxAtual - idxAnt) <= SALTO_MAX_LINHAS) {
       if (idxAtual > idxAnt) de = idxAnt + 1; else ate = idxAnt - 1;
     }
     for (let k = de; k <= ate; k++) mudouDado = aplicarAuto(linhas[k].chave) || mudouDado;
@@ -390,10 +392,16 @@ function renderFicha() {
   // barra fixa no rodapé: um botão por grupo com a condição que está valendo;
   // tocar abre a escolha (htmlEscolherAuto). A lista da ficha fica sempre à vista.
   const algumAuto = Object.values(s.auto).some(Boolean);
+  // no 1º uso em campo a Drenagem ficou sem condição o trajeto inteiro e ninguém viu:
+  // as 59 linhas saíram "FALTA" na conferência da planilha
+  const semCondicao = bloco.grupos.filter((g) => !s.auto[g.id]);
   const barraAuto = '<div class="auto-barra"><div class="auto-barra-topo"><b>Preencher ao passar</b><span class="rotulo-mini">'
     + (algumAuto ? "" : "toque num grupo") + "</span>"
     + '<button class="btn btn-outline btn-mini" id="btn-alerta-ficha">📷 Alerta</button>'
     + '<label class="chave-auto"><input type="checkbox" id="chk-auto"' + (s.autoLigado ? " checked" : "") + "> ligado</label></div>"
+    + (algumAuto && semCondicao.length
+      ? '<div class="auto-falta">⚠ Sem condição: <b>' + esc(semCondicao.map((g) => GRUPO_CURTO[g.id] || g.nome).join(", ")) + "</b> — as linhas vão ficar incompletas na planilha.</div>"
+      : "")
     + '<div class="auto-grupos">' + bloco.grupos.map((g) => {
       const k = piorIndice(g, s.auto[g.id]);
       return '<button class="auto-btn' + (k < 0 ? " vazia" : k === 0 ? " boa" : " ruim") + '" data-auto-abrir="' + g.id + '">'
