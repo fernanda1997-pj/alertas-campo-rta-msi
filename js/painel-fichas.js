@@ -85,9 +85,9 @@ function htmlFiltrosFichas() {
   const grupos = [...FICHAS.pav.grupos, ...FICHAS.np.grupos];
   return '<label class="campo-rotulado"><span class="rotulo-mini">Mês da ficha</span>'
     + '<input class="input input-mini" type="month" id="ff-mes" value="' + esc(st.comp) + '"></label>'
-    + '<label class="campo-rotulado"><span class="rotulo-mini">Colorir linhas por</span>'
-    + '<select class="input input-mini" id="ff-grupo"><option value="pior"' + (st.grupo === "pior" ? " selected" : "") + ">Pior condição</option>"
-    + grupos.map((g) => '<option value="' + g.id + '"' + (st.grupo === g.id ? " selected" : "") + ">" + esc(g.nome) + "</option>").join("") + "</select></label>";
+    + '<label class="campo-rotulado" title="Cada km do trecho aparece no mapa em verde (bom), amarelo (regular) ou vermelho (ruim)"><span class="rotulo-mini">Condição no mapa</span>'
+    + '<select class="input input-mini" id="ff-grupo"><option value="pior"' + (st.grupo === "pior" ? " selected" : "") + ">Todos os itens (vale o pior)</option>"
+    + grupos.map((g) => '<option value="' + g.id + '"' + (st.grupo === g.id ? " selected" : "") + ">Só " + esc(g.nome.charAt(0).toLowerCase() + g.nome.slice(1)) + "</option>").join("") + "</select></label>";
 }
 
 function ligarFiltrosFichas(m, trechos) {

@@ -6,7 +6,11 @@
   --danger:#DC2626; --danger-bg:#FEF2F2; --danger-border:#FECACA;
   --ok-bg:#F0FDF4; --ok-border:#BBF7D0;
   --shadow:0 1px 3px rgba(15,23,42,.08); --shadow-lg:0 24px 60px rgba(15,23,42,.28);
+  color-scheme:light dark; /* ícones nativos (calendário, setas) seguem o tema */
 }
+:root[data-theme="light"]{ color-scheme:light; }
+input[type="month"]::-webkit-calendar-picker-indicator{ opacity:.85; cursor:pointer; }
+input[type="month"]::-webkit-calendar-picker-indicator:hover{ opacity:1; }
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){
     --bg:#070A12; --panel:#111A2C; --surface:#182338; --surface-soft:#0F1728;
@@ -283,6 +287,9 @@ textarea.input{ height:auto; padding:10px 14px; resize:vertical; }
 .btn-filtros{ color:var(--text-muted); }
 .btn-filtros.aberto{ color:var(--accent); }
 .campo-rotulado{ display:inline-flex; align-items:center; gap:7px; }
+.campo-rotulado > span{ white-space:nowrap; }
+.campo-rotulado{ max-width:100%; min-width:0; }
+.campo-rotulado > select, .campo-rotulado > input{ min-width:0; flex:1 1 auto; }
 .menu-baixar{ position:relative; }
 .menu-baixar > summary{ list-style:none; display:inline-flex; align-items:center; cursor:pointer; }
 .menu-baixar > summary::-webkit-details-marker{ display:none; }
