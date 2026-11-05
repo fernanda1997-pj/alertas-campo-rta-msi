@@ -99,33 +99,49 @@ function renderPainel() {
   const secao = (id, titulo, n, corpo) => '<details class="secao-lista" data-secao="' + id + '"' + (secoes[id] ? " open" : "") + ">"
     + "<summary>" + titulo + ' <span class="chip-contagem-n">' + n + "</span></summary>" + corpo + "</details>";
 
+  // Cabeçalho em 3 faixas: (1) o que vale pra tudo (região, recarregar, baixar);
+  // (2) só alertas (status + filtros extras recolhidos); (3) só fichas (mês, cor).
+  // A caixinha de cada faixa liga/desliga a camada no mapa.
+  const nFiltros = [s.filtroGravidade, s.filtroCategoria, s.filtroMes, s.filtroSre].filter(Boolean).length;
+  const verFiltros = s.verFiltros || nFiltros > 0 && s.verFiltros !== false;
+  const carregandoAlgo = s.carregando || st.carregando;
+  const ordem = '<div class="lista-ordem"><label class="rotulo-mini" for="f-ordem">Ordenar</label>'
+    + '<select class="input input-mini" id="f-ordem"><option value="triagem"' + (s.ordem === "triagem" ? " selected" : "") + '>Urgentes primeiro</option><option value="sre"' + (s.ordem === "sre" ? " selected" : "") + ">Por S.R.E. e km (como na ficha)</option></select></div>";
+
   m.innerHTML = '<div class="painel-tela">'
-    + '<div class="painel-toolbar">'
+    + '<div class="painel-cabeca">'
+    + '<div class="painel-faixa painel-faixa-geral">'
+    + '<select class="input input-mini" id="f-regiao" title="Vale para alertas e fichas"><option value="">Todas as regiões</option>' + opts(Object.keys(REGIOES), s.filtroRegiao, rotuloRegiao) + "</select>"
+    + '<div class="painel-acoes">'
+    + '<button class="btn btn-outline btn-mini" id="btn-recarregar-painel"' + (carregandoAlgo ? " disabled" : "") + ">" + (carregandoAlgo ? "Carregando…" : "↻ Recarregar") + "</button>"
+    + '<details class="menu-baixar"><summary class="btn btn-outline btn-mini">⤓ Baixar ▾</summary><div class="menu-baixar-lista">'
+    + '<button id="btn-csv"><b>Alertas (CSV)</b><small>Uma linha por alerta, com os filtros da tela</small></button>'
+    + '<button id="btn-ficha"><b>Linhas da ficha (CSV)</b><small>Todos os km dos S.R.E. com alerta e o que marcar em cada grupo</small></button>'
+    + "</div></details></div></div>"
+    + '<div class="painel-faixa' + (mostrar.alertas ? "" : " desligada") + '">'
+    + '<label class="faixa-titulo" title="Mostrar alertas no mapa"><input type="checkbox" id="m-alertas"' + (mostrar.alertas ? " checked" : "") + "> Alertas</label>"
     + '<div class="chips-contagem">' + chips + "</div>"
-    + '<div class="painel-filtros">'
-    + '<select class="input input-mini" id="f-regiao"><option value="">Todas as regiões</option>' + opts(Object.keys(REGIOES), s.filtroRegiao, rotuloRegiao) + "</select>"
-    + '<select class="input input-mini" id="f-gravidade"><option value="">Qualquer gravidade</option>' + GRAVIDADES.map((g) => '<option value="' + g.id + '"' + (s.filtroGravidade === g.id ? " selected" : "") + ">" + esc(g.rotulo) + "</option>").join("") + "</select>"
-    + '<select class="input input-mini" id="f-mes"><option value="">Todos os meses</option>' + opts(meses, s.filtroMes, rotuloMes) + "</select>"
-    + '<select class="input input-mini" id="f-categoria"><option value="">Qualquer item da ficha</option>'
-    + TODOS_GRUPOS.map((g) => '<option value="' + g.id + '"' + (s.filtroCategoria === g.id ? " selected" : "") + ">" + esc(g.nome) + "</option>").join("")
-    + '<option value="outro"' + (s.filtroCategoria === "outro" ? " selected" : "") + ">Fora da ficha</option></select>"
-    + '<input class="input input-mini" id="f-sre" placeholder="S.R.E. (ex.: 201ETO0270)" value="' + esc(s.filtroSre) + '" style="width:190px;">'
-    + '<select class="input input-mini" id="f-ordem"><option value="triagem"' + (s.ordem === "triagem" ? " selected" : "") + '>Ordem: urgentes primeiro</option><option value="sre"' + (s.ordem === "sre" ? " selected" : "") + ">Ordem: S.R.E. e km (ficha)</option></select>"
-    + '<button class="btn btn-primary btn-mini" id="btn-ficha" title="Todos os km (de 1 em 1) dos S.R.E. dos trechos com alerta, com o que marcar em cada grupo da ficha (usa os filtros da tela)">Linhas da ficha (CSV)</button>'
-    + '<button class="btn btn-outline btn-mini" id="btn-csv">Alertas (CSV)</button>'
-    + '<button class="btn btn-outline btn-mini" id="btn-recarregar-painel"' + (s.carregando || st.carregando ? " disabled" : "") + ">" + (s.carregando || st.carregando ? "Carregando…" : "Recarregar") + "</button>"
-    + "</div></div>"
-    + '<div class="painel-toolbar painel-toolbar-fichas">'
-    + '<span class="rotulo-mini"><b>No mapa:</b></span>'
-    + '<label class="chave-auto"><input type="checkbox" id="m-alertas"' + (mostrar.alertas ? " checked" : "") + "> Alertas</label>"
-    + '<label class="chave-auto"><input type="checkbox" id="m-fichas"' + (mostrar.fichas ? " checked" : "") + "> Fichas percorridas</label>"
-    + '<div class="painel-filtros">' + htmlFiltrosFichas() + "</div></div>"
+    + '<button class="btn btn-ghost btn-mini btn-filtros' + (verFiltros ? " aberto" : "") + '" id="btn-ver-filtros">Mais filtros' + (nFiltros ? ' <span class="selo-novos">' + nFiltros + "</span>" : "") + " " + (verFiltros ? "▴" : "▾") + "</button>"
+    + "</div>"
+    + (verFiltros ? '<div class="painel-faixa painel-faixa-sub">'
+      + '<select class="input input-mini" id="f-gravidade"><option value="">Qualquer gravidade</option>' + GRAVIDADES.map((g) => '<option value="' + g.id + '"' + (s.filtroGravidade === g.id ? " selected" : "") + ">" + esc(g.rotulo) + "</option>").join("") + "</select>"
+      + '<select class="input input-mini" id="f-categoria"><option value="">Qualquer item da ficha</option>'
+      + TODOS_GRUPOS.map((g) => '<option value="' + g.id + '"' + (s.filtroCategoria === g.id ? " selected" : "") + ">" + esc(g.nome) + "</option>").join("")
+      + '<option value="outro"' + (s.filtroCategoria === "outro" ? " selected" : "") + ">Fora da ficha</option></select>"
+      + '<select class="input input-mini" id="f-mes" title="Mês em que a foto do alerta foi tirada"><option value="">Alertas de todos os meses</option>' + opts(meses, s.filtroMes, rotuloMes) + "</select>"
+      + '<input class="input input-mini" id="f-sre" placeholder="S.R.E. (ex.: 201ETO0270)" value="' + esc(s.filtroSre) + '" style="width:190px;">'
+      + (nFiltros ? '<button class="btn btn-ghost btn-mini" id="btn-limpar-filtros">Limpar filtros</button>' : "")
+      + "</div>" : "")
+    + '<div class="painel-faixa' + (mostrar.fichas ? "" : " desligada") + '">'
+    + '<label class="faixa-titulo" title="Mostrar fichas percorridas no mapa"><input type="checkbox" id="m-fichas"' + (mostrar.fichas ? " checked" : "") + "> Fichas percorridas</label>"
+    + htmlFiltrosFichas() + "</div>"
+    + "</div>"
     + (s.erro ? '<div class="banner-err" style="margin:12px;">' + esc(s.erro) + "</div>" : "")
     + (st.erro ? '<div class="banner-err" style="margin:12px;">' + esc(st.erro) + "</div>" : "")
     + '<div class="painel-corpo">'
     + '<div class="painel-mapa" id="mapa-painel"></div>'
     + '<div class="painel-lista">'
-    + secao("alertas", "Alertas", lista.length, linhas || vazioAlertas)
+    + secao("alertas", "Alertas", lista.length, (lista.length > 1 ? ordem : "") + (linhas || vazioAlertas))
     + secao("trechos", "Trechos percorridos · " + esc(rotuloMes(st.comp)), trechos.length, trechos.map(htmlCartaoTrecho).join("") || vazioTrechos)
     + "</div></div></div>"
     + (s.aberto ? htmlFicha(s.aberto) : st.aberto ? htmlTrechoPainel(trechos.find((t) => t.k === st.aberto)) : "");
@@ -135,15 +151,23 @@ function renderPainel() {
   m.querySelector("#m-fichas").addEventListener("change", (e) => { mostrar.fichas = e.target.checked; renderPainel(); });
   ligarFiltrosFichas(m, trechos);
   m.querySelectorAll("[data-filtro-status]").forEach((b) => b.addEventListener("click", () => { s.filtroStatus = b.dataset.filtroStatus; renderPainel(); }));
-  m.querySelector("#f-regiao").addEventListener("change", (e) => { s.filtroRegiao = e.target.value; renderPainel(); });
-  m.querySelector("#f-gravidade").addEventListener("change", (e) => { s.filtroGravidade = e.target.value; renderPainel(); });
-  m.querySelector("#f-categoria").addEventListener("change", (e) => { s.filtroCategoria = e.target.value; renderPainel(); });
-  m.querySelector("#f-ordem").addEventListener("change", (e) => { s.ordem = e.target.value; renderPainel(); });
-  m.querySelector("#f-sre").addEventListener("change", (e) => { s.filtroSre = e.target.value; renderPainel(); });
-  m.querySelector("#btn-recarregar-painel").addEventListener("click", carregarPainel);
-  m.querySelector("#btn-csv").addEventListener("click", () => baixarCsv(lista));
-  m.querySelector("#btn-ficha").addEventListener("click", () => baixarLinhasFicha(lista));
-  m.querySelector("#f-mes").addEventListener("change", (e) => { s.filtroMes = e.target.value; renderPainel(); });
+  const ao = (sel, ev, fn) => { const el = m.querySelector(sel); if (el) el.addEventListener(ev, fn); };
+  ao("#f-regiao", "change", (e) => { s.filtroRegiao = e.target.value; renderPainel(); });
+  ao("#f-gravidade", "change", (e) => { s.filtroGravidade = e.target.value; renderPainel(); });
+  ao("#f-categoria", "change", (e) => { s.filtroCategoria = e.target.value; renderPainel(); });
+  ao("#f-ordem", "change", (e) => { s.ordem = e.target.value; renderPainel(); });
+  ao("#f-sre", "change", (e) => { s.filtroSre = e.target.value; renderPainel(); });
+  ao("#f-mes", "change", (e) => { s.filtroMes = e.target.value; renderPainel(); });
+  ao("#btn-ver-filtros", "click", () => { s.verFiltros = !verFiltros; renderPainel(); });
+  ao("#btn-limpar-filtros", "click", () => { s.filtroGravidade = s.filtroCategoria = s.filtroMes = s.filtroSre = ""; renderPainel(); });
+  ao("#btn-recarregar-painel", "click", carregarPainel);
+  const menu = m.querySelector(".menu-baixar");
+  ao("#btn-csv", "click", () => { menu.open = false; baixarCsv(lista); });
+  ao("#btn-ficha", "click", () => { menu.open = false; baixarLinhasFicha(lista); });
+  if (!renderPainel._fecharMenu) { // fecha o "Baixar" ao clicar fora (liga uma vez só)
+    renderPainel._fecharMenu = true;
+    document.addEventListener("click", (e) => { const d = document.querySelector(".menu-baixar[open]"); if (d && !d.contains(e.target)) d.open = false; });
+  }
   m.querySelectorAll("[data-abrir]").forEach((b) => b.addEventListener("click", () => abrirFicha(b.dataset.abrir)));
   if (s.aberto) ligarFicha(m);
 

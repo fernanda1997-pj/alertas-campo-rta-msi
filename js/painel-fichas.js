@@ -83,10 +83,11 @@ function htmlResumoCondicao(cont) {
 function htmlFiltrosFichas() {
   const st = fichasPainel;
   const grupos = [...FICHAS.pav.grupos, ...FICHAS.np.grupos];
-  return '<label class="rotulo-mini" for="ff-mes">Fichas de</label>'
-    + '<input class="input input-mini" type="month" id="ff-mes" value="' + esc(st.comp) + '" title="Mês da ficha">'
-    + '<select class="input input-mini" id="ff-grupo" title="O que a cor das linhas da ficha mostra"><option value="pior"' + (st.grupo === "pior" ? " selected" : "") + ">Cor: pior condição</option>"
-    + grupos.map((g) => '<option value="' + g.id + '"' + (st.grupo === g.id ? " selected" : "") + ">Cor: " + esc(g.nome) + "</option>").join("") + "</select>";
+  return '<label class="campo-rotulado"><span class="rotulo-mini">Mês da ficha</span>'
+    + '<input class="input input-mini" type="month" id="ff-mes" value="' + esc(st.comp) + '"></label>'
+    + '<label class="campo-rotulado"><span class="rotulo-mini">Colorir linhas por</span>'
+    + '<select class="input input-mini" id="ff-grupo"><option value="pior"' + (st.grupo === "pior" ? " selected" : "") + ">Pior condição</option>"
+    + grupos.map((g) => '<option value="' + g.id + '"' + (st.grupo === g.id ? " selected" : "") + ">" + esc(g.nome) + "</option>").join("") + "</select></label>";
 }
 
 function ligarFiltrosFichas(m, trechos) {
